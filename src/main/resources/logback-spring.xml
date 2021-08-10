@@ -1,0 +1,24 @@
+<configuration>
+    <property name="format" value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${format}</pattern>
+        </encoder>
+    </appender>
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>application.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+        <encoder>
+            <pattern>${format}</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.heterodain.mining.powercontroller" level="DEBUG" />
+    <root level="INFO">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+    </root>
+</configuration>

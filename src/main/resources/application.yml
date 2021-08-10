@@ -1,0 +1,12 @@
+# デバイス設定
+device:
+  pv-controller:
+    com-port: "ttyUSB0"
+    unit-id: 1
+
+# サービス設定
+service:
+  ambient:
+    channel-id: 99999
+    read-key: "****************"
+    write-key: "****************"
