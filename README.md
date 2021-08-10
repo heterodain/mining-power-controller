@@ -35,5 +35,5 @@
 4. Raspberry PI上で実行 (Execute on Raspberry PI)
 
      ```command
-     java -jar solar-monitor-1.0.jar
+     java -jar mining-powercontroller-1.0.jar
      ```
