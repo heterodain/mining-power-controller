@@ -8,6 +8,8 @@
 ![j2mod](https://img.shields.io/badge/j2mod-2.7.0-green.svg)
 ![pi4j](https://img.shields.io/badge/pi4j-1.3-green.svg)
 
+[![Video1](https://img.youtube.com/vi/rS7NZO7rW9k/0.jpg)](https://www.youtube.com/watch?v=rS7NZO7rW9k)
+
 ## 必要要件 (Requirement)
 
 - PV コントローラー (PV controller)
