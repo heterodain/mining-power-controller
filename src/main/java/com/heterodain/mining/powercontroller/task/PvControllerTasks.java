@@ -1,7 +1,6 @@
 package com.heterodain.mining.powercontroller.task;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,11 +17,12 @@ import com.heterodain.mining.powercontroller.device.PvControllerDevice.RealtimeD
 import com.heterodain.mining.powercontroller.service.AmbientService;
 import com.pi4j.io.gpio.GpioController;
 import com.pi4j.io.gpio.GpioFactory;
+import com.pi4j.io.gpio.GpioPinDigitalInput;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
+import com.pi4j.io.gpio.PinPullResistance;
 import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -56,10 +56,10 @@ public class PvControllerTasks {
     private GpioController gpio;
     /** PC電源オンオフ制御GPIO */
     private GpioPinDigitalOutput pcPowerSw;
+    /** PC電源状態監視GPIO */
+    private GpioPinDigitalInput pcPowerStatus;
     /** 初期化済みフラグ */
     private boolean initialized = false;
-    /** PC電源の状態(ON:true,OFF:false) */
-    private boolean pcPowerOn = false;
     /** 計測データ */
     private List<RealtimeData> datas = new ArrayList<>();
 
@@ -69,16 +69,28 @@ public class PvControllerTasks {
     @PostConstruct
     public void init() throws IOException {
         // GPIO初期化
+        log.info("GIPOを初期化します。");
         gpio = GpioFactory.getInstance();
 
         while (true) {
             try {
                 Thread.sleep(3000);
-                pcPowerSw = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_25, "PC_POWER", PinState.LOW);
+                pcPowerSw = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
                 pcPowerSw.setShutdownOptions(true, PinState.LOW);
                 break;
             } catch (Exception e) {
-                log.warn("GPIOの初期化に失敗しました。リトライします。", e);
+                log.warn("GPIO26(25)の初期化に失敗しました。リトライします。", e);
+            }
+        }
+
+        while (true) {
+            try {
+                Thread.sleep(3000);
+                pcPowerStatus = gpio.provisionDigitalInputPin(RaspiPin.GPIO_27, "PC_POWER_STATUS",
+                        PinPullResistance.OFF);
+                break;
+            } catch (Exception e) {
+                log.warn("GPIO16(27)の初期化に失敗しました。リトライします。", e);
             }
         }
 
@@ -138,17 +150,19 @@ public class PvControllerTasks {
             datas.clear();
         }
 
+        // PCの電源状態取得
+        boolean pcPowerOn = pcPowerStatus.isHigh();
+
         // 電源制御
         taskExecutor.execute(() -> {
             try {
-                if (battSOC > 85D && !pcPowerOn) {
-                    // バッテリー残量>85%のとき、PC電源ON
+                if (battSOC > 92D && !pcPowerOn) {
+                    // バッテリー残量>92%のとき、PC電源ON
                     log.info("PC電源をONします。");
 
                     pcPowerSw.high();
                     Thread.sleep(300);
                     pcPowerSw.low();
-                    pcPowerOn = true;
 
                 } else if (battSOC < 30D && battVolt < 24.1D && pcPowerOn) {
                     // バッテリー残量<30%かつ電圧24.1ボルト未満のとき、PC電源OFF
@@ -157,7 +171,6 @@ public class PvControllerTasks {
                     pcPowerSw.high();
                     Thread.sleep(300);
                     pcPowerSw.low();
-                    pcPowerOn = false;
                 }
             } catch (Exception e) {
                 log.warn("電源制御に失敗しました。", e);
@@ -184,6 +197,7 @@ public class PvControllerTasks {
     @PreDestroy
     public void destroy() {
         if (gpio != null) {
+            log.debug("GPIOをシャットダウンします。");
             gpio.shutdown();
         }
         if (conn != null) {
