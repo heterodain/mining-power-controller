@@ -4,6 +4,8 @@ import com.ghgande.j2mod.modbus.ModbusException;
 import com.ghgande.j2mod.modbus.io.ModbusSerialTransaction;
 import com.ghgande.j2mod.modbus.msg.ReadInputRegistersRequest;
 import com.ghgande.j2mod.modbus.msg.ReadInputRegistersResponse;
+import com.ghgande.j2mod.modbus.msg.WriteCoilRequest;
+import com.ghgande.j2mod.modbus.msg.WriteCoilResponse;
 import com.ghgande.j2mod.modbus.net.SerialConnection;
 import com.heterodain.mining.powercontroller.config.DeviceConfig.PvController;
 
@@ -55,6 +57,27 @@ public class PvControllerDevice {
         log.debug("{}", data);
 
         return data;
+    }
+
+    /**
+     * 負荷出力スイッチON/OFF
+     * 
+     * @param info 接続情報
+     * @param conn シリアル接続
+     * @param sw   ture:スイッチON,false:スイッチOFF
+     * @throws ModbusException
+     */
+    public synchronized void changeLoadSwith(PvController info, SerialConnection conn, boolean sw)
+            throws ModbusException {
+        var req = new WriteCoilRequest(2, sw);
+        req.setUnitID(info.getUnitId());
+        // req.setDataLength(1);
+        ModbusSerialTransaction tr = new ModbusSerialTransaction(conn);
+        tr.setRequest(req);
+        tr.execute();
+
+        var res = (WriteCoilResponse) tr.getResponse();
+        log.debug("Coil={}", res.getCoil());
     }
 
     @Getter

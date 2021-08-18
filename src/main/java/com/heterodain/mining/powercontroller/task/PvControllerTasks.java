@@ -158,8 +158,11 @@ public class PvControllerTasks {
             try {
                 if (battSOC > 92D && !pcPowerOn) {
                     // バッテリー残量>92%のとき、PC電源ON
-                    log.info("PC電源をONします。");
+                    log.info("チャージコントローラーの負荷出力をONします。");
+                    pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, true);
+                    Thread.sleep(10000);
 
+                    log.info("PC電源をONします。");
                     pcPowerSw.high();
                     Thread.sleep(300);
                     pcPowerSw.low();
@@ -167,10 +170,13 @@ public class PvControllerTasks {
                 } else if (battSOC < 30D && battVolt < 24.1D && pcPowerOn) {
                     // バッテリー残量<30%かつ電圧24.1ボルト未満のとき、PC電源OFF
                     log.info("PC電源をOFFします。");
-
                     pcPowerSw.high();
                     Thread.sleep(300);
                     pcPowerSw.low();
+
+                    log.info("チャージコントローラーの負荷出力をOFFします。");
+                    Thread.sleep(15000);
+                    pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, false);
                 }
             } catch (Exception e) {
                 log.warn("電源制御に失敗しました。", e);
