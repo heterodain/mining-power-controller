@@ -75,22 +75,22 @@ public class PvControllerTasks {
         while (true) {
             try {
                 Thread.sleep(3000);
-                pcPowerSw = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_00, "PC_POWER_SW", PinState.LOW);
+                pcPowerSw = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
                 pcPowerSw.setShutdownOptions(true, PinState.LOW);
                 break;
             } catch (Exception e) {
-                log.warn("GPIO17(0)の初期化に失敗しました。リトライします。", e);
+                log.warn("GPIO26(25)の初期化に失敗しました。リトライします。", e);
             }
         }
 
         while (true) {
             try {
                 Thread.sleep(3000);
-                pcPowerStatus = gpio.provisionDigitalInputPin(RaspiPin.GPIO_27, "PC_POWER_STATUS",
+                pcPowerStatus = gpio.provisionDigitalInputPin(RaspiPin.GPIO_00, "PC_POWER_STATUS",
                         PinPullResistance.PULL_DOWN);
                 break;
             } catch (Exception e) {
-                log.warn("GPIO26(27)の初期化に失敗しました。リトライします。", e);
+                log.warn("GPIO17(0)の初期化に失敗しました。リトライします。", e);
             }
         }
 
