@@ -90,7 +90,7 @@ public class PvControllerTasks {
                         PinPullResistance.PULL_DOWN);
                 break;
             } catch (Exception e) {
-                log.warn("GPIO16(27)の初期化に失敗しました。リトライします。", e);
+                log.warn("GPIO26(27)の初期化に失敗しました。リトライします。", e);
             }
         }
 
