@@ -167,15 +167,16 @@ public class PvControllerTasks {
                     Thread.sleep(300);
                     pcPowerSw.low();
 
-                } else if (battSOC < 30D && battVolt < 24.1D && pcPowerOn) {
-                    // バッテリー残量<30%かつ電圧24.1ボルト未満のとき、PC電源OFF
+                } else if (/* battSOC < 30D && */ battVolt < 23.8D && pcPowerOn) {
+                    // 電圧が23.8ボルト未満のとき、PC電源OFF
+                    // TODO 電圧は負荷やバッテリーの劣化度に応じて要調整(負荷100Wで24.1, 200Wで23.8くらいが目安)
                     log.info("PC電源をOFFします。");
                     pcPowerSw.high();
                     Thread.sleep(300);
                     pcPowerSw.low();
 
-                    log.info("チャージコントローラーの負荷出力をOFFします。");
                     Thread.sleep(15000);
+                    log.info("チャージコントローラーの負荷出力をOFFします。");
                     pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, false);
                 }
             } catch (Exception e) {
