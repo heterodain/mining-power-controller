@@ -9,6 +9,10 @@
 ![pi4j](https://img.shields.io/badge/pi4j-1.3-green.svg)
 
 [![Video1](https://img.youtube.com/vi/rS7NZO7rW9k/0.jpg)](https://www.youtube.com/watch?v=rS7NZO7rW9k)
+(using v1.0)
+
+[![Video2](https://img.youtube.com/vi/DXjwRsGMiQ4/0.jpg)](https://www.youtube.com/watch?v=DXjwRsGMiQ4)
+(using v1.1)
 
 ## 必要要件 (Requirement)
 
