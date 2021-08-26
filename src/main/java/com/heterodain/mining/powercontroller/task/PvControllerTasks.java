@@ -158,7 +158,7 @@ public class PvControllerTasks {
             try {
                 if (battSOC > 91D && !pcPowerOn) {
                     // バッテリー残量>91%のとき、PC電源ON
-                    log.debug("チャージコントローラーの負荷出力をONします。");
+                    log.info("チャージコントローラーの負荷出力をONします。");
                     pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, true);
                     Thread.sleep(10000);
 
@@ -174,11 +174,9 @@ public class PvControllerTasks {
                     pcPowerSw.high();
                     Thread.sleep(300);
                     pcPowerSw.low();
-                }
 
-                // 稀に負荷出力がOFFに切り替わらないことがあるので、毎回OFFにする
-                if (!pcPowerOn) {
-                    log.debug("チャージコントローラーの負荷出力をOFFします。");
+                    Thread.sleep(20000);
+                    log.info("チャージコントローラーの負荷出力をOFFします。");
                     pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, false);
                 }
             } catch (Exception e) {
