@@ -12,6 +12,7 @@ import com.ghgande.j2mod.modbus.net.SerialConnection;
 import com.ghgande.j2mod.modbus.util.SerialParameters;
 import com.heterodain.mining.powercontroller.config.DeviceConfig;
 import com.heterodain.mining.powercontroller.config.ServiceConfig;
+import com.heterodain.mining.powercontroller.config.ControlConfig;
 import com.heterodain.mining.powercontroller.device.PvControllerDevice;
 import com.heterodain.mining.powercontroller.device.PvControllerDevice.RealtimeData;
 import com.heterodain.mining.powercontroller.service.AmbientService;
@@ -40,6 +41,8 @@ public class PvControllerTasks {
     private DeviceConfig deviceConfig;
     @Autowired
     private ServiceConfig serviceConfig;
+    @Autowired
+    private ControlConfig controlConfig;
 
     @Autowired
     private PvControllerDevice pvControllerDevice;
@@ -133,7 +136,7 @@ public class PvControllerTasks {
      * 30秒毎に電源制御
      */
     @Scheduled(cron = "0 * * * * *")
-    public void powerColtroll() {
+    public void controlPower() {
         if (threeSecDatas.size() < 5) {
             return;
         }
@@ -157,8 +160,10 @@ public class PvControllerTasks {
 
         // 電源制御
         try {
-            if (summary.getBattSOC() >= 91D && !pcPowerOn) {
-                // バッテリー残量>=91%のとき、PC電源ON
+            var powerConfig = controlConfig.getPower();
+
+            if (summary.getBattSOC() >= powerConfig.getPowerOnSoc() && !pcPowerOn) {
+                // バッテリー残量が設定値以上のとき、PC電源ON
                 log.debug("チャージコントローラーの負荷出力をONします。");
                 pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, true);
                 Thread.sleep(10000);
@@ -168,9 +173,9 @@ public class PvControllerTasks {
                 Thread.sleep(300);
                 pcPowerSw.low();
 
-            } else if (/* summary.getBattSOC() <= 30D && */ summary.getBattVolt() <= 23.8D && pcPowerOn) {
-                // 電圧が23.8ボルト以下のとき、PC電源OFF
-                // TODO 電圧は負荷やバッテリーの劣化度に応じて要調整(負荷100Wで24.1, 200Wで23.8くらいが目安)
+            } else if (/* summary.getBattSOC() <= 30D && */ summary.getBattVolt() <= powerConfig.getPowerOffVoltage()
+                    && pcPowerOn) {
+                // 電圧が設定値以下のとき、PC電源OFF
                 log.info("PC電源をOFFします。");
                 pcPowerSw.high();
                 Thread.sleep(300);
