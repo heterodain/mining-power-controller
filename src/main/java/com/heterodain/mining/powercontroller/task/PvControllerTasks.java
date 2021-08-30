@@ -24,7 +24,6 @@ import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -47,9 +46,6 @@ public class PvControllerTasks {
     @Autowired
     private AmbientService ambientService;
 
-    @Autowired
-    private TaskExecutor taskExecutor;
-
     /** RS485シリアル接続 */
     private SerialConnection conn;
     /** GPIOコントローラー */
@@ -60,8 +56,10 @@ public class PvControllerTasks {
     private GpioPinDigitalInput pcPowerStatus;
     /** 初期化済みフラグ */
     private boolean initialized = false;
-    /** 計測データ */
-    private List<RealtimeData> datas = new ArrayList<>();
+    /** 計測データ(3秒値) */
+    private List<RealtimeData> threeSecDatas = new ArrayList<>();
+    /** 計測データ(30秒値) */
+    private List<RealtimeData> thirtySecDatas = new ArrayList<>();
 
     /**
      * 初期化
@@ -123,8 +121,8 @@ public class PvControllerTasks {
 
         try {
             var data = pvControllerDevice.readCurrent(deviceConfig.getPvController(), conn);
-            synchronized (datas) {
-                datas.add(data);
+            synchronized (threeSecDatas) {
+                threeSecDatas.add(data);
             }
         } catch (Exception e) {
             log.warn("PVコントローラーへのアクセスに失敗しました。", e);
@@ -132,70 +130,93 @@ public class PvControllerTasks {
     }
 
     /**
-     * 3分毎に電源制御&Ambientにデータ送信
+     * 30秒毎に電源制御
      */
-    @Scheduled(cron = "0 */3 * * * *")
-    public void summary() {
-        if (datas.size() < 5) {
+    @Scheduled(cron = "0 * * * * *")
+    public void powerColtroll() {
+        if (threeSecDatas.size() < 5) {
             return;
         }
 
         // 集計
-        double pvPower, battVolt, loadPower, battSOC;
-        synchronized (datas) {
-            pvPower = datas.stream().mapToDouble(RealtimeData::getPvPower).average().orElse(0D);
-            battVolt = datas.stream().mapToDouble(RealtimeData::getBattVolt).average().orElse(0D);
-            loadPower = datas.stream().mapToDouble(RealtimeData::getLoadPower).average().orElse(0D);
-            battSOC = datas.stream().mapToDouble(RealtimeData::getBattSOC).average().orElse(0D);
-            datas.clear();
+        RealtimeData summary;
+        synchronized (threeSecDatas) {
+            summary = new RealtimeData();
+            summary.setPvPower(threeSecDatas.stream().mapToDouble(RealtimeData::getPvPower).average().orElse(0D));
+            summary.setBattVolt(threeSecDatas.stream().mapToDouble(RealtimeData::getBattVolt).average().orElse(0D));
+            summary.setLoadPower(threeSecDatas.stream().mapToDouble(RealtimeData::getLoadPower).average().orElse(0D));
+            summary.setBattSOC(threeSecDatas.stream().mapToDouble(RealtimeData::getBattSOC).average().orElse(0D));
+            threeSecDatas.clear();
+        }
+        synchronized (thirtySecDatas) {
+            thirtySecDatas.add(summary);
         }
 
         // PCの電源状態取得
         boolean pcPowerOn = pcPowerStatus.isHigh();
 
         // 電源制御
-        taskExecutor.execute(() -> {
-            try {
-                if (battSOC > 91D && !pcPowerOn) {
-                    // バッテリー残量>91%のとき、PC電源ON
-                    log.info("チャージコントローラーの負荷出力をONします。");
-                    pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, true);
-                    Thread.sleep(10000);
+        try {
+            if (summary.getBattSOC() >= 91D && !pcPowerOn) {
+                // バッテリー残量>=91%のとき、PC電源ON
+                log.debug("チャージコントローラーの負荷出力をONします。");
+                pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, true);
+                Thread.sleep(10000);
 
-                    log.info("PC電源をONします。");
-                    pcPowerSw.high();
-                    Thread.sleep(300);
-                    pcPowerSw.low();
+                log.info("PC電源をONします。");
+                pcPowerSw.high();
+                Thread.sleep(300);
+                pcPowerSw.low();
 
-                } else if (/* battSOC < 30D && */ battVolt < 23.8D && pcPowerOn) {
-                    // 電圧が23.8ボルト未満のとき、PC電源OFF
-                    // TODO 電圧は負荷やバッテリーの劣化度に応じて要調整(負荷100Wで24.1, 200Wで23.8くらいが目安)
-                    log.info("PC電源をOFFします。");
-                    pcPowerSw.high();
-                    Thread.sleep(300);
-                    pcPowerSw.low();
-
-                    Thread.sleep(20000);
-                    log.info("チャージコントローラーの負荷出力をOFFします。");
-                    pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, false);
-                }
-            } catch (Exception e) {
-                log.warn("電源制御に失敗しました。", e);
+            } else if (/* summary.getBattSOC() <= 30D && */ summary.getBattVolt() <= 23.8D && pcPowerOn) {
+                // 電圧が23.8ボルト以下のとき、PC電源OFF
+                // TODO 電圧は負荷やバッテリーの劣化度に応じて要調整(負荷100Wで24.1, 200Wで23.8くらいが目安)
+                log.info("PC電源をOFFします。");
+                pcPowerSw.high();
+                Thread.sleep(300);
+                pcPowerSw.low();
             }
-        });
+
+            if (!pcPowerOn) {
+                log.debug("チャージコントローラーの負荷出力をOFFします。");
+                pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, false);
+            }
+
+        } catch (Exception e) {
+            log.warn("電源制御に失敗しました。", e);
+        }
+    }
+
+    /**
+     * 3分毎にAmbientにデータ送信
+     */
+    @Scheduled(cron = "0 */3 * * * *")
+    public void sendAmbient() {
+        if (thirtySecDatas.isEmpty()) {
+            return;
+        }
+
+        // 集計
+        RealtimeData summary;
+        synchronized (thirtySecDatas) {
+            summary = RealtimeData.summary(thirtySecDatas);
+            thirtySecDatas.clear();
+        }
+
+        // PCの電源状態取得
+        boolean pcPowerOn = pcPowerStatus.isHigh();
 
         // Ambient送信
-        taskExecutor.execute(() -> {
-            try {
-                var sendDatas = new Double[] { pvPower, battVolt, loadPower, battSOC, pcPowerOn ? 1D : 0D };
-                log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},battSOC={},pcPowerOn={}", sendDatas[0],
-                        sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
+        try {
+            var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
+                    summary.getBattSOC(), pcPowerOn ? 1D : 0D };
+            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},battSOC={},pcPowerOn={}", sendDatas[0],
+                    sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
 
-                ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
-            } catch (Exception e) {
-                log.warn("Ambientへのデータ送信に失敗しました。", e);
-            }
-        });
+            ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
+        } catch (Exception e) {
+            log.warn("Ambientへのデータ送信に失敗しました。", e);
+        }
     }
 
     /**
