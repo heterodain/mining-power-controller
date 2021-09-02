@@ -1,12 +1,17 @@
 # デバイス設定
-device:
-  pv-controller:
-    com-port: "ttyUSB0"
-    unit-id: 1
+device.pv-controller:
+  com-port: "ttyUSB0"
+  unit-id: 1
 
 # サービス設定
-service:
-  ambient:
-    channel-id: 99999
-    read-key: "****************"
-    write-key: "****************"
+service.ambient:
+  channel-id: 99999
+  read-key: "****************"
+  write-key: "****************"
+
+# 制御パラメータ
+control.power:
+  # 電源ONするバッテリー残量
+  power-on-soc: 91.0
+  # 電源OFFするバッテリー電圧 : 電圧は負荷やバッテリーの劣化度に応じて要調整(負荷100Wで24.1, 200Wで23.8くらいが目安)
+  power-off-voltage: 23.8

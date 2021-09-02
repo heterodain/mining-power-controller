@@ -1,5 +1,7 @@
 package com.heterodain.mining.powercontroller.device;
 
+import java.util.List;
+
 import com.ghgande.j2mod.modbus.ModbusException;
 import com.ghgande.j2mod.modbus.io.ModbusSerialTransaction;
 import com.ghgande.j2mod.modbus.msg.ReadCoilsRequest;
@@ -14,6 +16,7 @@ import com.heterodain.mining.powercontroller.config.DeviceConfig.PvController;
 import org.springframework.stereotype.Component;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.var;
 import lombok.extern.slf4j.Slf4j;
@@ -104,11 +107,22 @@ public class PvControllerDevice {
     }
 
     @Getter
+    @Setter
     @ToString
     public static class RealtimeData {
         public Double pvPower;
         public Double battVolt;
         public Double loadPower;
         public Double battSOC;
+
+        public static RealtimeData summary(List<RealtimeData> datas) {
+            var summary = new RealtimeData();
+            summary.setPvPower(datas.stream().mapToDouble(RealtimeData::getPvPower).average().orElse(0D));
+            summary.setBattVolt(datas.stream().mapToDouble(RealtimeData::getBattVolt).average().orElse(0D));
+            summary.setLoadPower(datas.stream().mapToDouble(RealtimeData::getLoadPower).average().orElse(0D));
+            summary.setBattSOC(datas.stream().mapToDouble(RealtimeData::getBattSOC).average().orElse(0D));
+
+            return summary;
+        }
     }
 }
