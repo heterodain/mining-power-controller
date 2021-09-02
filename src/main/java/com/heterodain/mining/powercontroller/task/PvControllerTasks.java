@@ -20,6 +20,7 @@ import com.pi4j.io.gpio.GpioController;
 import com.pi4j.io.gpio.GpioFactory;
 import com.pi4j.io.gpio.GpioPinDigitalInput;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
+import com.pi4j.io.gpio.Pin;
 import com.pi4j.io.gpio.PinPullResistance;
 import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
@@ -53,6 +54,8 @@ public class PvControllerTasks {
     private SerialConnection conn;
     /** GPIOコントローラー */
     private GpioController gpio;
+    /** 負荷出力オンオフ制御GPIO */
+    private GpioPinDigitalOutput loadPowerSw;
     /** PC電源オンオフ制御GPIO */
     private GpioPinDigitalOutput pcPowerSw;
     /** PC電源状態監視GPIO */
@@ -72,28 +75,9 @@ public class PvControllerTasks {
         // GPIO初期化
         log.info("GIPOを初期化します。");
         gpio = GpioFactory.getInstance();
-
-        while (true) {
-            try {
-                Thread.sleep(3000);
-                pcPowerSw = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
-                pcPowerSw.setShutdownOptions(true, PinState.LOW);
-                break;
-            } catch (Exception e) {
-                log.warn("GPIO26(25)の初期化に失敗しました。リトライします。", e);
-            }
-        }
-
-        while (true) {
-            try {
-                Thread.sleep(3000);
-                pcPowerStatus = gpio.provisionDigitalInputPin(RaspiPin.GPIO_00, "PC_POWER_STATUS",
-                        PinPullResistance.PULL_DOWN);
-                break;
-            } catch (Exception e) {
-                log.warn("GPIO17(0)の初期化に失敗しました。リトライします。", e);
-            }
-        }
+        initOutputGPIO(RaspiPin.GPIO_27, "LOAD_POWER_SW", PinState.LOW);
+        initOutputGPIO(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
+        initInputGPIO(RaspiPin.GPIO_00, "PC_POWER_STATUS", PinPullResistance.PULL_DOWN);
 
         // PVコントローラー初期化
         var pvcSetting = deviceConfig.getPvController();
@@ -164,9 +148,9 @@ public class PvControllerTasks {
 
             if (summary.getBattSOC() >= powerConfig.getPowerOnSoc() && !pcPowerOn) {
                 // バッテリー残量が設定値以上のとき、PC電源ON
-                log.debug("チャージコントローラーの負荷出力をONします。");
-                pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, true);
-                Thread.sleep(10000);
+                log.debug("負荷出力をONします。");
+                loadPowerSw.high();
+                Thread.sleep(5000);
 
                 log.info("PC電源をONします。");
                 pcPowerSw.high();
@@ -183,8 +167,8 @@ public class PvControllerTasks {
             }
 
             if (!pcPowerOn) {
-                log.debug("チャージコントローラーの負荷出力をOFFします。");
-                pvControllerDevice.changeLoadSwith(deviceConfig.getPvController(), conn, false);
+                log.debug("負荷出力をOFFします。");
+                loadPowerSw.low();
             }
 
         } catch (Exception e) {
@@ -239,5 +223,29 @@ public class PvControllerTasks {
         }
 
         initialized = false;
+    }
+
+    private GpioPinDigitalOutput initOutputGPIO(Pin pin, String name, PinState initial) {
+        while (true) {
+            try {
+                Thread.sleep(3000);
+                GpioPinDigitalOutput result = gpio.provisionDigitalOutputPin(pin, name, initial);
+                result.setShutdownOptions(true, initial);
+                return result;
+            } catch (Exception e) {
+                log.warn("GPIO(" + pin + ")の初期化に失敗しました。リトライします。", e);
+            }
+        }
+    }
+
+    private GpioPinDigitalInput initInputGPIO(Pin pin, String name, PinPullResistance pull) {
+        while (true) {
+            try {
+                Thread.sleep(3000);
+                return gpio.provisionDigitalInputPin(pin, name, pull);
+            } catch (Exception e) {
+                log.warn("GPIO(" + pin + ")の初期化に失敗しました。リトライします。", e);
+            }
+        }
     }
 }
