@@ -2,6 +2,8 @@ package com.heterodain.mining.powercontroller.device;
 
 import com.ghgande.j2mod.modbus.ModbusException;
 import com.ghgande.j2mod.modbus.io.ModbusSerialTransaction;
+import com.ghgande.j2mod.modbus.msg.ReadCoilsRequest;
+import com.ghgande.j2mod.modbus.msg.ReadCoilsResponse;
 import com.ghgande.j2mod.modbus.msg.ReadInputRegistersRequest;
 import com.ghgande.j2mod.modbus.msg.ReadInputRegistersResponse;
 import com.ghgande.j2mod.modbus.msg.WriteCoilRequest;
@@ -57,6 +59,27 @@ public class PvControllerDevice {
         log.debug("{}", data);
 
         return data;
+    }
+
+    /**
+     * 負荷出力スイッチ状態取得
+     * 
+     * @param info 接続情報
+     * @param conn シリアル接続
+     * @return true:スイッチON,false:スイッチOFF
+     * @throws ModbusException
+     */
+    public synchronized boolean readLoadSwitch(PvController info, SerialConnection conn) throws ModbusException {
+        var req = new ReadCoilsRequest(2, 1);
+        req.setUnitID(info.getUnitId());
+        ModbusSerialTransaction tr = new ModbusSerialTransaction(conn);
+        tr.setRequest(req);
+        tr.execute();
+
+        var res = (ReadCoilsResponse) tr.getResponse();
+        log.debug("Coil={}", res.getCoilStatus(0));
+
+        return res.getCoilStatus(0);
     }
 
     /**
