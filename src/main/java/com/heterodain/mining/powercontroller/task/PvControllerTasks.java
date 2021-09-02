@@ -75,9 +75,9 @@ public class PvControllerTasks {
         // GPIO初期化
         log.info("GIPOを初期化します。");
         gpio = GpioFactory.getInstance();
-        initOutputGPIO(RaspiPin.GPIO_27, "LOAD_POWER_SW", PinState.LOW);
-        initOutputGPIO(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
-        initInputGPIO(RaspiPin.GPIO_00, "PC_POWER_STATUS", PinPullResistance.PULL_DOWN);
+        loadPowerSw = initOutputGPIO(RaspiPin.GPIO_27, "LOAD_POWER_SW", PinState.LOW);
+        pcPowerSw = initOutputGPIO(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
+        pcPowerStatus = initInputGPIO(RaspiPin.GPIO_00, "PC_POWER_STATUS", PinPullResistance.PULL_DOWN);
 
         // PVコントローラー初期化
         var pvcSetting = deviceConfig.getPvController();
@@ -164,9 +164,8 @@ public class PvControllerTasks {
                 pcPowerSw.high();
                 Thread.sleep(300);
                 pcPowerSw.low();
-            }
 
-            if (!pcPowerOn) {
+                Thread.sleep(20000);
                 log.debug("負荷出力をOFFします。");
                 loadPowerSw.low();
             }

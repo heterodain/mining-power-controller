@@ -9,7 +9,7 @@ import lombok.Data;
  * 制御の設定
  */
 @Component
-@ConfigurationProperties("coltrol")
+@ConfigurationProperties("control")
 @Data
 public class ControlConfig {
     /* 電源制御の設定 */
