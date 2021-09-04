@@ -54,8 +54,8 @@ public class PvControllerTasks {
     private SerialConnection conn;
     /** GPIOコントローラー */
     private GpioController gpio;
-    /** 負荷出力オンオフ制御GPIO */
-    private GpioPinDigitalOutput loadPowerSw;
+    /** 負荷出力抵抗オンオフ制御GPIO */
+    private GpioPinDigitalOutput loadPowerRegisterSw;
     /** PC電源オンオフ制御GPIO */
     private GpioPinDigitalOutput pcPowerSw;
     /** PC電源状態監視GPIO */
@@ -75,7 +75,7 @@ public class PvControllerTasks {
         // GPIO初期化
         log.info("GIPOを初期化します。");
         gpio = GpioFactory.getInstance();
-        loadPowerSw = initOutputGPIO(RaspiPin.GPIO_27, "LOAD_POWER_SW", PinState.LOW);
+        loadPowerRegisterSw = initOutputGPIO(RaspiPin.GPIO_27, "LOAD_POWER_REG_SW", PinState.LOW);
         pcPowerSw = initOutputGPIO(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
         pcPowerStatus = initInputGPIO(RaspiPin.GPIO_00, "PC_POWER_STATUS", PinPullResistance.PULL_DOWN);
 
@@ -128,11 +128,7 @@ public class PvControllerTasks {
         // 集計
         RealtimeData summary;
         synchronized (threeSecDatas) {
-            summary = new RealtimeData();
-            summary.setPvPower(threeSecDatas.stream().mapToDouble(RealtimeData::getPvPower).average().orElse(0D));
-            summary.setBattVolt(threeSecDatas.stream().mapToDouble(RealtimeData::getBattVolt).average().orElse(0D));
-            summary.setLoadPower(threeSecDatas.stream().mapToDouble(RealtimeData::getLoadPower).average().orElse(0D));
-            summary.setBattSOC(threeSecDatas.stream().mapToDouble(RealtimeData::getBattSOC).average().orElse(0D));
+            summary = RealtimeData.summary(threeSecDatas);
             threeSecDatas.clear();
         }
         synchronized (thirtySecDatas) {
@@ -144,13 +140,22 @@ public class PvControllerTasks {
 
         // 電源制御
         try {
+            var pvControllerConfig = deviceConfig.getPvController();
             var powerConfig = controlConfig.getPower();
 
             if (summary.getBattSOC() >= powerConfig.getPowerOnSoc() && !pcPowerOn) {
                 // バッテリー残量が設定値以上のとき、PC電源ON
-                log.debug("負荷出力をONします。");
-                loadPowerSw.high();
-                Thread.sleep(5000);
+                log.info("負荷出力をONします。");
+
+                // DCDCコンバーターにいきなり接続すると、
+                // 突入電流でチャージコントローラーの保護回路が働いてしまうので、
+                // 5Ω抵抗経由で接続したあと、ダイレクトに接続する
+                loadPowerRegisterSw.high();
+                Thread.sleep(300);
+                pvControllerDevice.changeLoadSwith(pvControllerConfig, conn, true);
+                Thread.sleep(1000);
+                loadPowerRegisterSw.low();
+                Thread.sleep(4000);
 
                 log.info("PC電源をONします。");
                 pcPowerSw.high();
@@ -166,8 +171,8 @@ public class PvControllerTasks {
                 pcPowerSw.low();
 
                 Thread.sleep(20000);
-                log.debug("負荷出力をOFFします。");
-                loadPowerSw.low();
+                log.info("負荷出力をOFFします。");
+                pvControllerDevice.changeLoadSwith(pvControllerConfig, conn, false);
             }
 
         } catch (Exception e) {
