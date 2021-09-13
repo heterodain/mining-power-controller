@@ -15,6 +15,7 @@ import com.heterodain.mining.powercontroller.config.DeviceConfig.PvController;
 
 import org.springframework.stereotype.Component;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -58,6 +59,15 @@ public class PvControllerDevice {
 
         res = (ReadInputRegistersResponse) tr.getResponse();
         data.battSOC = ((double) res.getRegisterValue(0));
+
+        req = new ReadInputRegistersRequest(0x3201, 1);
+        req.setUnitID(info.getUnitId());
+        tr = new ModbusSerialTransaction(conn);
+        tr.setRequest(req);
+        tr.execute();
+
+        res = (ReadInputRegistersResponse) tr.getResponse();
+        data.stage = STAGE.values()[(res.getRegisterValue(0) >> 2) & 0x0003];
 
         log.debug("{}", data);
 
@@ -114,6 +124,7 @@ public class PvControllerDevice {
         public Double battVolt;
         public Double loadPower;
         public Double battSOC;
+        public STAGE stage;
 
         public static RealtimeData summary(List<RealtimeData> datas) {
             var summary = new RealtimeData();
@@ -121,8 +132,17 @@ public class PvControllerDevice {
             summary.setBattVolt(datas.stream().mapToDouble(RealtimeData::getBattVolt).average().orElse(0D));
             summary.setLoadPower(datas.stream().mapToDouble(RealtimeData::getLoadPower).average().orElse(0D));
             summary.setBattSOC(datas.stream().mapToDouble(RealtimeData::getBattSOC).average().orElse(0D));
+            summary.setStage(datas.stream().map(d -> d.getStage()).reduce((a, b) -> b).orElse(null));
 
             return summary;
         }
+    }
+
+    @AllArgsConstructor
+    @Getter
+    public static enum STAGE {
+        NO_CHARGING("No Charging"), BOOST("Boost"), EQULIZATION("Equlization"), FLOAT("Float");
+
+        private String displayString;
     }
 }

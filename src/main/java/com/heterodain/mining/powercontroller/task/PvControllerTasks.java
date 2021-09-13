@@ -142,9 +142,12 @@ public class PvControllerTasks {
         try {
             var pvControllerConfig = deviceConfig.getPvController();
             var powerConfig = controlConfig.getPower();
+            var powerOnCondition = powerConfig.getPowerOnCondition();
+            var powerOffCondition = powerConfig.getPowerOffCondition();
 
-            if (summary.getBattSOC() >= powerConfig.getPowerOnSoc() && !pcPowerOn) {
-                // バッテリー残量が設定値以上のとき、PC電源ON
+            if (!pcPowerOn
+                    && powerOnCondition.compare(summary.getStage(), summary.getBattSOC(), summary.getBattVolt()) >= 0) {
+                // 設定条件以上のとき、PC電源ON
                 log.info("負荷出力をONします。");
 
                 // DCDCコンバーターにいきなり接続すると、
@@ -162,9 +165,9 @@ public class PvControllerTasks {
                 Thread.sleep(300);
                 pcPowerSw.low();
 
-            } else if (/* summary.getBattSOC() <= 30D && */ summary.getBattVolt() <= powerConfig.getPowerOffVoltage()
-                    && pcPowerOn) {
-                // 電圧が設定値以下のとき、PC電源OFF
+            } else if (pcPowerOn && powerOffCondition.compare(summary.getStage(), summary.getBattSOC(),
+                    summary.getBattVolt()) <= 0) {
+                // 設定条件以下のとき、PC電源OFF
                 log.info("PC電源をOFFします。");
                 pcPowerSw.high();
                 Thread.sleep(300);

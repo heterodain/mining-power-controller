@@ -11,7 +11,20 @@ service.ambient:
 
 # 制御パラメータ
 control.power:
-  # 電源ONするバッテリー残量
-  power-on-soc: 91.0
-  # 電源OFFするバッテリー電圧 : 電圧は負荷やバッテリーの劣化度に応じて要調整(負荷100Wで24.1, 200Wで23.8くらいが目安)
-  power-off-voltage: 23.8
+  # 電源ONする条件(stage/soc/voltageのどれか一つ)
+  ## stage: 充電ステージに応じて制御(Boost/Equlization/Float/No Charging)
+  ## soc: バッテリー残量に応じて制御(91%目安) ※SOCの値はあまりあてにならない
+  ## voltage: 電圧に応じで制御(バッテリーの種類に応じて要調整 - 開放型で28.2, 密閉型で28.0くらいが目安)
+  power-on-condition:
+    stage: Equlization
+    # soc: 91.0
+    # voltage: 28.0
+
+  # 電源OFFする条件(stage/soc/voltageのどれか一つ)
+  ## stage: 充電ステージに応じて制御(Boost/Equlization/Float/No Charging)
+  ## soc: バッテリー残量に応じて制御(30%目安) ※SOCの値はあまりあてにならない
+  ## voltage: 電圧に応じで制御(負荷100Wで24.1, 200Wで23.8くらいが目安)
+  power-off-condition:
+    # stage: No Charging
+    # soc: 30.0
+    voltage: 23.8
