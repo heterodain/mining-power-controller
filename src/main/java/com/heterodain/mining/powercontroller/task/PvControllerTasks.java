@@ -119,7 +119,7 @@ public class PvControllerTasks {
     /**
      * 30秒毎に電源制御
      */
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0/30 * * * * *")
     public void controlPower() {
         if (threeSecDatas.size() < 5) {
             return;
