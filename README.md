@@ -41,7 +41,7 @@
     mvn clean package
     ```
 
-4. Raspberry PI上で実行 (Execute on Raspberry PI)
+4. jarとapplication.ymlファイルを同一フォルダに置いて、Raspberry PI上で実行 (Put jar and application.yml files in same folder, Execute on Raspberry PI)
 
      ```command
      java -jar mining-powercontroller-1.0.jar
