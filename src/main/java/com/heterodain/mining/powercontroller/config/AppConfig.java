@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import lombok.var;
@@ -34,5 +35,19 @@ public class AppConfig {
         var taskScheduler = new ThreadPoolTaskScheduler();
         taskScheduler.setPoolSize(5); // 5スレッド同時実行
         return taskScheduler;
+    }
+
+    /**
+     * タスク実行の設定
+     * 
+     * @return タスク実行
+     */
+    @Bean
+    public ThreadPoolTaskExecutor taskExecutor() {
+        ThreadPoolTaskExecutor pool = new ThreadPoolTaskExecutor();
+        pool.setCorePoolSize(1); // 1スレッド同時実行
+        pool.setWaitForTasksToCompleteOnShutdown(false);
+        pool.initialize();
+        return pool;
     }
 }
