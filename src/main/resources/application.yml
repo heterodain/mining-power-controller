@@ -10,21 +10,26 @@ service.ambient:
   write-key: "****************"
 
 # 制御パラメータ
-control.power:
-  # 電源ONする条件(stage/soc/voltageのどれか一つ)
-  ## stage: 充電ステージに応じて制御(BOOST/EQULIZATION/FLOAT/NO_CHARGING)
-  ## soc: バッテリー残量に応じて制御(91%目安) ※SOCの値はあまりあてにならない
-  ## voltage: 電圧に応じで制御(バッテリーの種類に応じて要調整 - 開放型で29.2, 密閉型で28.8くらいが目安)
-  power-on-condition:
-    stage: EQULIZATION
-    # soc: 91.0
-    # voltage: 29.2
+control:
+  power:
+    # 電源ONする条件(stage/soc/voltageのどれか一つ)
+    ## stage: 充電ステージに応じて制御(BOOST/EQULIZATION/FLOAT/NO_CHARGING)
+    ## soc: バッテリー残量に応じて制御(91%目安) ※SOCの値はあまりあてにならない
+    ## voltage: 電圧に応じで制御(バッテリーの種類に応じて要調整 - 開放型で29.2, 密閉型で28.8くらいが目安)
+    power-on-condition:
+      stage: EQULIZATION
+      # soc: 91.0
+      # voltage: 29.2
 
-  # 電源OFFする条件(stage/soc/voltageのどれか一つ)
-  ## stage: 充電ステージに応じて制御(BOOST/EQULIZATION/FLOAT/NO_CHARGING)
-  ## soc: バッテリー残量に応じて制御(30%目安) ※SOCの値はあまりあてにならない
-  ## voltage: 電圧に応じで制御(負荷100Wで24.1, 200Wで23.8くらいが目安)
-  power-off-condition:
-    # stage: NO_CHARGING
-    # soc: 30.0
-    voltage: 23.8
+    # 電源OFFする条件(stage/soc/voltageのどれか一つ)
+    ## stage: 充電ステージに応じて制御(BOOST/EQULIZATION/FLOAT/NO_CHARGING)
+    ## soc: バッテリー残量に応じて制御(30%目安) ※SOCの値はあまりあてにならない
+    ## voltage: 電圧に応じで制御(負荷100Wで24.1, 200Wで23.8くらいが目安)
+    power-off-condition:
+      # stage: NO_CHARGING
+      # soc: 30.0
+      voltage: 24.0
+  fan:
+    # PC電源オフ後、冷却FANを停止するまでの時間(分)
+    power-off-duration: 10
+

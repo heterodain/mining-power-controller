@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Future;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -27,6 +28,7 @@ import com.pi4j.io.gpio.RaspiPin;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 import lombok.var;
@@ -50,6 +52,9 @@ public class PvControllerTasks {
     @Autowired
     private AmbientService ambientService;
 
+    @Autowired
+    private ThreadPoolTaskExecutor taskExecutor;
+
     /** RS485シリアル接続 */
     private SerialConnection conn;
     /** GPIOコントローラー */
@@ -58,6 +63,8 @@ public class PvControllerTasks {
     private GpioPinDigitalOutput loadPowerRegisterSw;
     /** PC電源オンオフ制御GPIO */
     private GpioPinDigitalOutput pcPowerSw;
+    /** 冷却ファンオンオフ制御GPIO */
+    private GpioPinDigitalOutput fanPowerSw;
     /** PC電源状態監視GPIO */
     private GpioPinDigitalInput pcPowerStatus;
     /** 初期化済みフラグ */
@@ -66,6 +73,8 @@ public class PvControllerTasks {
     private List<RealtimeData> threeSecDatas = new ArrayList<>();
     /** 計測データ(30秒値) */
     private List<RealtimeData> thirtySecDatas = new ArrayList<>();
+    /** ファン停止タスク実行結果 */
+    private Future<?> fanStopFuture;
 
     /**
      * 初期化
@@ -77,6 +86,7 @@ public class PvControllerTasks {
         gpio = GpioFactory.getInstance();
         loadPowerRegisterSw = initOutputGPIO(RaspiPin.GPIO_27, "LOAD_POWER_REG_SW", PinState.LOW);
         pcPowerSw = initOutputGPIO(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
+        fanPowerSw = initOutputGPIO(RaspiPin.GPIO_02, "FAN_POWER_SW", PinState.LOW);
         pcPowerStatus = initInputGPIO(RaspiPin.GPIO_00, "PC_POWER_STATUS", PinPullResistance.PULL_DOWN);
 
         // PVコントローラー初期化
@@ -158,12 +168,20 @@ public class PvControllerTasks {
                 pvControllerDevice.changeLoadSwith(pvControllerConfig, conn, true);
                 Thread.sleep(1000);
                 loadPowerRegisterSw.low();
+
                 Thread.sleep(4000);
 
                 log.info("PC電源をONします。");
                 pcPowerSw.high();
                 Thread.sleep(300);
                 pcPowerSw.low();
+
+                log.info("冷却ファンを始動します。");
+                if (fanStopFuture != null && !fanStopFuture.isDone()) {
+                    fanStopFuture.cancel(true);
+                }
+                Thread.sleep(100);
+                fanPowerSw.high();
 
             } else if (pcPowerOn && powerOffCondition.compare(summary.getStage(), summary.getBattSOC(),
                     summary.getBattVolt()) <= 0) {
@@ -174,8 +192,21 @@ public class PvControllerTasks {
                 pcPowerSw.low();
 
                 Thread.sleep(20000);
+
                 log.info("負荷出力をOFFします。");
                 pvControllerDevice.changeLoadSwith(pvControllerConfig, conn, false);
+
+                // 指定時間待ってから冷却ファンを止める
+                fanStopFuture = taskExecutor.submit(() -> {
+                    try {
+                        Thread.sleep(controlConfig.getFan().getPowerOffDuration() * 60 * 1000);
+
+                        log.info("冷却ファンを停止します。");
+                        fanPowerSw.low();
+                    } catch (InterruptedException ignore) {
+                        // NOP
+                    }
+                });
             }
 
         } catch (Exception e) {
@@ -240,7 +271,8 @@ public class PvControllerTasks {
                 result.setShutdownOptions(true, initial);
                 return result;
             } catch (Exception e) {
-                log.warn("GPIO(" + pin + ")の初期化に失敗しました。リトライします。", e);
+                log.warn("", e);
+                log.warn("GPIO(" + pin + ")の初期化に失敗しました。リトライします。");
             }
         }
     }
@@ -251,7 +283,8 @@ public class PvControllerTasks {
                 Thread.sleep(3000);
                 return gpio.provisionDigitalInputPin(pin, name, pull);
             } catch (Exception e) {
-                log.warn("GPIO(" + pin + ")の初期化に失敗しました。リトライします。", e);
+                log.warn("", e);
+                log.warn("GPIO(" + pin + ")の初期化に失敗しました。リトライします。");
             }
         }
     }

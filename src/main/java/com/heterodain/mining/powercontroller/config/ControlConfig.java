@@ -1,8 +1,5 @@
 package com.heterodain.mining.powercontroller.config;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.heterodain.mining.powercontroller.device.PvControllerDevice.STAGE;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -17,8 +14,10 @@ import lombok.Data;
 @ConfigurationProperties("control")
 @Data
 public class ControlConfig {
-    /* 電源制御の設定 */
+    /** 電源制御の設定 */
     private Power power;
+    /** ファン制御の設定 */
+    private Fan fan;
 
     /**
      * 電源制御の設定
@@ -36,8 +35,6 @@ public class ControlConfig {
      */
     @Data
     public static class PowerCondition {
-        private static List<STAGE> STAGES = Arrays.asList(STAGE.values());
-
         /** 充電ステージ */
         private STAGE stage;
         /** 残量(%) */
@@ -48,7 +45,7 @@ public class ControlConfig {
         /** 比較する */
         public int compare(STAGE _stage, Double _soc, Double _voltage) {
             if (stage != null) {
-                return STAGES.indexOf(_stage) - STAGES.indexOf(stage);
+                return _stage.getIndex() - stage.getIndex();
             }
             if (soc != null) {
                 return _soc == soc ? 0 : _soc < soc ? -1 : 1;
@@ -58,5 +55,14 @@ public class ControlConfig {
             }
             return 0;
         }
+    }
+
+    /**
+     * ファン制御の設定
+     */
+    @Data
+    public static class Fan {
+        /** ファン停止までの待ち時間(分) */
+        private Integer powerOffDuration;
     }
 }

@@ -32,7 +32,7 @@ public class AppConfig {
     @Bean
     public ThreadPoolTaskScheduler getTaskScheduler() {
         var taskScheduler = new ThreadPoolTaskScheduler();
-        taskScheduler.setPoolSize(4); // 4スレッド同時実行
+        taskScheduler.setPoolSize(5); // 5スレッド同時実行
         return taskScheduler;
     }
 }

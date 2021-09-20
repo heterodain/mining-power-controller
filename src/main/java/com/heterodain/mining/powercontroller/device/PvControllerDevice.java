@@ -141,8 +141,8 @@ public class PvControllerDevice {
     @AllArgsConstructor
     @Getter
     public static enum STAGE {
-        NO_CHARGING("No Charging"), BOOST("Boost"), EQULIZATION("Equlization"), FLOAT("Float");
+        NO_CHARGING(0), FLOAT(3), BOOST(1), EQULIZATION(2);
 
-        private String displayString;
+        private int index;
     }
 }
