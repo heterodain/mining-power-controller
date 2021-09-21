@@ -30,6 +30,6 @@ control:
       # soc: 30.0
       voltage: 24.0
   fan:
-    # PC電源オフ後、冷却FANを停止するまでの時間(分)
+    # 電源OFF後、冷却FANを停止するまでの時間(分)
     power-off-duration: 10
 
