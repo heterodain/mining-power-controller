@@ -62,7 +62,7 @@ public class ControlConfig {
      */
     @Data
     public static class Fan {
-        /** ファン停止までの待ち時間(分) */
+        /** PC停止後、冷却FAN停止までの時間(分) */
         private Integer powerOffDuration;
         /** 15分毎の冷却FAN動作時間(秒) */
         private Integer duration;
