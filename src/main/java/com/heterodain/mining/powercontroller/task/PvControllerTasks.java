@@ -247,6 +247,24 @@ public class PvControllerTasks {
     }
 
     /**
+     * 15分毎にファンを回す
+     */
+    @Scheduled(cron = "0 */15 * * * *")
+    public void fanControl() {
+        if (taskExecutor.getActiveCount() == 0) {
+            try {
+                log.info("冷却ファンを始動します。");
+                fanPowerSw.high();
+                Thread.sleep(controlConfig.getFan().getDuration() * 1000);
+                log.info("冷却ファンを停止します。");
+                fanPowerSw.low();
+            } catch (Exception e) {
+                log.warn("ファン制御に失敗しました。", e);
+            }
+        }
+    }
+
+    /**
      * 終了処理
      */
     @PreDestroy

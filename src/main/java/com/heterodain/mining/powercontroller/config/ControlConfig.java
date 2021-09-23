@@ -64,5 +64,7 @@ public class ControlConfig {
     public static class Fan {
         /** ファン停止までの待ち時間(分) */
         private Integer powerOffDuration;
+        /** 15分毎の冷却FAN動作時間(秒) */
+        private Integer duration;
     }
 }
