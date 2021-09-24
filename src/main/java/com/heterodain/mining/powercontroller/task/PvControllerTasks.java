@@ -104,6 +104,13 @@ public class PvControllerTasks {
         conn = new SerialConnection(serialParam);
         conn.open();
 
+        // 既にPCが起動中だった場合はファンを始動
+        boolean pcPowerOn = pcPowerStatus.isHigh();
+        if (pcPowerOn) {
+            log.info("冷却ファンを始動します。");
+            fanPowerSw.high();
+        }
+
         initialized = true;
     }
 
@@ -251,7 +258,9 @@ public class PvControllerTasks {
      */
     @Scheduled(cron = "0 */15 * * * *")
     public void fanControl() {
-        if (taskExecutor.getActiveCount() == 0) {
+        // PCが電源OFFかつ、クーリング中でなければファンを回す
+        boolean pcPowerOn = pcPowerStatus.isHigh();
+        if (!pcPowerOn && taskExecutor.getActiveCount() == 0) {
             try {
                 log.info("冷却ファンを始動します。");
                 fanPowerSw.high();
@@ -290,7 +299,7 @@ public class PvControllerTasks {
                 return result;
             } catch (Exception e) {
                 log.warn("", e);
-                log.warn("GPIO(" + pin + ")の初期化に失敗しました。リトライします。");
+                log.warn(pin + "の初期化に失敗しました。リトライします。");
             }
         }
     }
@@ -302,7 +311,7 @@ public class PvControllerTasks {
                 return gpio.provisionDigitalInputPin(pin, name, pull);
             } catch (Exception e) {
                 log.warn("", e);
-                log.warn("GPIO(" + pin + ")の初期化に失敗しました。リトライします。");
+                log.warn(pin + "の初期化に失敗しました。リトライします。");
             }
         }
     }

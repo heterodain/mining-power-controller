@@ -44,16 +44,17 @@ public class ControlConfig {
 
         /** 比較する */
         public int compare(STAGE _stage, Double _soc, Double _voltage) {
-            if (stage != null) {
-                return _stage.getIndex() - stage.getIndex();
-            }
-            if (soc != null) {
-                return _soc == soc ? 0 : _soc < soc ? -1 : 1;
-            }
+            int ret = 0;
             if (voltage != null) {
-                return _voltage == voltage ? 0 : _voltage < voltage ? -1 : 1;
+                ret = _voltage == voltage ? 0 : _voltage < voltage ? -1 : 1;
             }
-            return 0;
+            if (soc != null && ret == 0) {
+                ret = _soc == soc ? 0 : _soc < soc ? -1 : 1;
+            }
+            if (stage != null && ret == 0) {
+                ret = _stage.getIndex() - stage.getIndex();
+            }
+            return ret;
         }
     }
 
