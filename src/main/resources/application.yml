@@ -4,10 +4,23 @@ device.pv-controller:
   unit-id: 1
 
 # サービス設定
-service.ambient:
-  channel-id: 99999
-  read-key: "****************"
-  write-key: "****************"
+service:
+  # Ambientのチャネル接続設定
+  ambient:
+    channel-id: 99999
+    read-key: "****************"
+    write-key: "****************"
+
+  # Nicehash APIの接続設定
+  ## org-id: オーガニゼーションID
+  ## api-key: APIキー
+  ## api-secret: API秘密キー
+  ## rig-id: リグID
+  nicehash:
+    org-id: "************************************"
+    api-key: "************************************"
+    api-secret: "************************************************************************"
+    rig-id: "************************"
 
 # 制御パラメータ
 control:

@@ -17,6 +17,9 @@ import com.heterodain.mining.powercontroller.config.ControlConfig;
 import com.heterodain.mining.powercontroller.device.PvControllerDevice;
 import com.heterodain.mining.powercontroller.device.PvControllerDevice.RealtimeData;
 import com.heterodain.mining.powercontroller.service.AmbientService;
+import com.heterodain.mining.powercontroller.service.NicehashService;
+import com.heterodain.mining.powercontroller.service.NicehashService.POWER_MODE;
+import com.heterodain.mining.powercontroller.service.NicehashService.RigStatus;
 import com.pi4j.io.gpio.GpioController;
 import com.pi4j.io.gpio.GpioFactory;
 import com.pi4j.io.gpio.GpioPinDigitalInput;
@@ -51,6 +54,8 @@ public class PvControllerTasks {
     private PvControllerDevice pvControllerDevice;
     @Autowired
     private AmbientService ambientService;
+    @Autowired
+    private NicehashService nicehashService;
 
     @Autowired
     private ThreadPoolTaskExecutor taskExecutor;
@@ -75,12 +80,14 @@ public class PvControllerTasks {
     private List<RealtimeData> thirtySecDatas = new ArrayList<>();
     /** ファン停止タスク実行結果 */
     private Future<?> fanStopFuture;
+    /** リグの状態 */
+    private RigStatus rigStatus;
 
     /**
      * 初期化
      */
     @PostConstruct
-    public void init() throws IOException {
+    public void init() throws Exception {
         // GPIO初期化
         log.info("GIPOを初期化します。");
         gpio = GpioFactory.getInstance();
@@ -110,6 +117,13 @@ public class PvControllerTasks {
             log.info("冷却ファンを始動します。");
             fanPowerSw.high();
         }
+
+        // リグのステータス取得
+        log.info("マイニングリグの情報を取得します。");
+        var nicehashConfig = serviceConfig.getNicehash();
+        var serverTime = nicehashService.getServerTime();
+        rigStatus = nicehashService.getRigStatus(nicehashConfig, serverTime);
+        log.debug("リグの状態: {}", rigStatus);
 
         initialized = true;
     }
@@ -207,13 +221,39 @@ public class PvControllerTasks {
                 fanStopFuture = taskExecutor.submit(() -> {
                     try {
                         Thread.sleep(controlConfig.getFan().getPowerOffDuration() * 60 * 1000);
-
-                        log.info("冷却ファンを停止します。");
-                        fanPowerSw.low();
                     } catch (InterruptedException ignore) {
                         // NOP
                     }
+
+                    log.info("冷却ファンを停止します。");
+                    fanPowerSw.low();
                 });
+
+            } else if (pcPowerOn && summary.getPvPower() > summary.getLoadPower()) {
+                // 発電電力>消費電力のとき、TDPを上げる
+                var powerMode = rigStatus.getRigPowerMode();
+                var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
+                        : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.HIGH : POWER_MODE.LOW;
+                if (powerMode != newPowerMode) {
+                    log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
+                    var time = nicehashService.getServerTime();
+                    if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
+                        rigStatus.setRigPowerMode(newPowerMode);
+                    }
+                }
+
+            } else if (pcPowerOn && summary.getPvPower() < summary.getLoadPower()) {
+                // 発電電力<消費電力のとき、TDPを下げる
+                var powerMode = rigStatus.getRigPowerMode();
+                var newPowerMode = powerMode == POWER_MODE.HIGH ? POWER_MODE.MEDIUM
+                        : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.LOW : POWER_MODE.LOW;
+                if (powerMode != newPowerMode) {
+                    log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
+                    var time = nicehashService.getServerTime();
+                    if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
+                        rigStatus.setRigPowerMode(newPowerMode);
+                    }
+                }
             }
 
         } catch (Exception e) {
