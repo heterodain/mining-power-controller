@@ -151,7 +151,7 @@ public class PvControllerTasks {
      * 30秒毎に電源制御
      */
     @Scheduled(cron = "0/30 * * * * *")
-    public void controlPower() {
+    public void powerControl() {
         if (threeSecDatas.size() < 5) {
             return;
         }
@@ -228,32 +228,6 @@ public class PvControllerTasks {
                     log.info("冷却ファンを停止します。");
                     fanPowerSw.low();
                 });
-
-            } else if (pcPowerOn && summary.getPvPower() > summary.getLoadPower()) {
-                // 発電電力>消費電力のとき、TDPを上げる
-                var powerMode = rigStatus.getRigPowerMode();
-                var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
-                        : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.HIGH : POWER_MODE.HIGH;
-                if (powerMode != newPowerMode) {
-                    log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
-                    var time = nicehashService.getServerTime();
-                    if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
-                        rigStatus.setRigPowerMode(newPowerMode);
-                    }
-                }
-
-            } else if (pcPowerOn && summary.getPvPower() < summary.getLoadPower()) {
-                // 発電電力<消費電力のとき、TDPを下げる
-                var powerMode = rigStatus.getRigPowerMode();
-                var newPowerMode = powerMode == POWER_MODE.HIGH ? POWER_MODE.MEDIUM
-                        : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.LOW : POWER_MODE.LOW;
-                if (powerMode != newPowerMode) {
-                    log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
-                    var time = nicehashService.getServerTime();
-                    if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
-                        rigStatus.setRigPowerMode(newPowerMode);
-                    }
-                }
             }
 
         } catch (Exception e) {
@@ -262,10 +236,10 @@ public class PvControllerTasks {
     }
 
     /**
-     * 3分毎にAmbientにデータ送信
+     * 3分毎にTDP制御 & Ambientにデータ送信
      */
     @Scheduled(cron = "0 */3 * * * *")
-    public void sendAmbient() {
+    public void tdpControlAndSendAmbient() throws Exception {
         if (thirtySecDatas.isEmpty()) {
             return;
         }
@@ -279,6 +253,34 @@ public class PvControllerTasks {
 
         // PCの電源状態取得
         boolean pcPowerOn = pcPowerStatus.isHigh();
+
+        // TDP制御
+        if (pcPowerOn && summary.getPvPower() > summary.getLoadPower()) {
+            // 発電電力>消費電力のとき、TDPを上げる
+            var powerMode = rigStatus.getRigPowerMode();
+            var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
+                    : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.HIGH : POWER_MODE.HIGH;
+            if (powerMode != newPowerMode) {
+                log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
+                var time = nicehashService.getServerTime();
+                if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
+                    rigStatus.setRigPowerMode(newPowerMode);
+                }
+            }
+
+        } else if (pcPowerOn && summary.getPvPower() < summary.getLoadPower()) {
+            // 発電電力<消費電力のとき、TDPを下げる
+            var powerMode = rigStatus.getRigPowerMode();
+            var newPowerMode = powerMode == POWER_MODE.HIGH ? POWER_MODE.MEDIUM
+                    : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.LOW : POWER_MODE.LOW;
+            if (powerMode != newPowerMode) {
+                log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
+                var time = nicehashService.getServerTime();
+                if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
+                    rigStatus.setRigPowerMode(newPowerMode);
+                }
+            }
+        }
 
         // Ambient送信
         try {
