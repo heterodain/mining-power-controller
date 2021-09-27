@@ -233,7 +233,7 @@ public class PvControllerTasks {
                 // 発電電力>消費電力のとき、TDPを上げる
                 var powerMode = rigStatus.getRigPowerMode();
                 var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
-                        : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.HIGH : POWER_MODE.LOW;
+                        : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.HIGH : POWER_MODE.HIGH;
                 if (powerMode != newPowerMode) {
                     log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
                     var time = nicehashService.getServerTime();
