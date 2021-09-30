@@ -78,6 +78,8 @@ public class PvControllerTasks {
     private List<RealtimeData> threeSecDatas = new ArrayList<>();
     /** 計測データ(30秒値) */
     private List<RealtimeData> thirtySecDatas = new ArrayList<>();
+    /** 計測データ(15分値) */
+    private List<RealtimeData> fifteenMinDatas = new ArrayList<>();
     /** ファン停止タスク実行結果 */
     private Future<?> fanStopFuture;
     /** リグの状態 */
@@ -236,10 +238,10 @@ public class PvControllerTasks {
     }
 
     /**
-     * 3分毎にTDP制御 & Ambientにデータ送信
+     * 3分毎にAmbientにデータ送信
      */
     @Scheduled(cron = "0 */3 * * * *")
-    public void tdpControlAndSendAmbient() throws Exception {
+    public void sendAmbient() throws Exception {
         if (thirtySecDatas.isEmpty()) {
             return;
         }
@@ -250,11 +252,44 @@ public class PvControllerTasks {
             summary = RealtimeData.summary(thirtySecDatas);
             thirtySecDatas.clear();
         }
+        synchronized (fifteenMinDatas) {
+            fifteenMinDatas.add(summary);
+        }
 
         // PCの電源状態取得
         boolean pcPowerOn = pcPowerStatus.isHigh();
 
+        // Ambient送信
+        try {
+            var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
+                    summary.getBattSOC(), pcPowerOn ? 1D : 0D };
+            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},battSOC={},pcPowerOn={}", sendDatas[0],
+                    sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
+
+            ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
+        } catch (Exception e) {
+            log.warn("Ambientへのデータ送信に失敗しました。", e);
+        }
+    }
+
+    /**
+     * 15分毎にTDP制御
+     */
+    @Scheduled(cron = "0 */15 * * * *")
+    public void tdpControl() throws Exception {
+        if (fifteenMinDatas.isEmpty()) {
+            return;
+        }
+
+        // 集計
+        RealtimeData summary;
+        synchronized (fifteenMinDatas) {
+            summary = RealtimeData.summary(fifteenMinDatas);
+            fifteenMinDatas.clear();
+        }
+
         // TDP制御
+        boolean pcPowerOn = pcPowerStatus.isHigh();
         if (pcPowerOn && summary.getPvPower() > summary.getLoadPower()) {
             // 発電電力>消費電力のとき、TDPを上げる
             var powerMode = rigStatus.getRigPowerMode();
@@ -280,18 +315,6 @@ public class PvControllerTasks {
                     rigStatus.setRigPowerMode(newPowerMode);
                 }
             }
-        }
-
-        // Ambient送信
-        try {
-            var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
-                    summary.getBattSOC(), pcPowerOn ? 1D : 0D };
-            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},battSOC={},pcPowerOn={}", sendDatas[0],
-                    sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
-
-            ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
-        } catch (Exception e) {
-            log.warn("Ambientへのデータ送信に失敗しました。", e);
         }
     }
 
