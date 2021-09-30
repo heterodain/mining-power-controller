@@ -152,7 +152,7 @@ public class PvControllerTasks {
     /**
      * 30秒毎に電源制御
      */
-    @Scheduled(cron = "0/30 * * * * *")
+    @Scheduled(fixedDelay = 30 * 1000, initialDelay = 30 * 1000)
     public void powerControl() {
         if (threeSecDatas.size() < 5) {
             return;
@@ -275,7 +275,7 @@ public class PvControllerTasks {
     /**
      * 15分毎にTDP制御
      */
-    @Scheduled(cron = "0 */15 * * * *")
+    @Scheduled(fixedDelay = 15 * 60 * 1000, initialDelay = 15 * 60 * 1000)
     public void tdpControl() throws Exception {
         if (fifteenMinDatas.isEmpty()) {
             return;
