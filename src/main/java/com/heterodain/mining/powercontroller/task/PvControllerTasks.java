@@ -288,9 +288,11 @@ public class PvControllerTasks {
             fifteenMinDatas.clear();
         }
 
+        Double histeresis = controlConfig.getTdp().getHysteresis();
+
         // TDP制御
         boolean pcPowerOn = pcPowerStatus.isHigh();
-        if (pcPowerOn && summary.getPvPower() > summary.getLoadPower()) {
+        if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
             // 発電電力>消費電力のとき、TDPを上げる
             var powerMode = rigStatus.getRigPowerMode();
             var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
@@ -303,7 +305,7 @@ public class PvControllerTasks {
                 }
             }
 
-        } else if (pcPowerOn && summary.getPvPower() < summary.getLoadPower()) {
+        } else if (pcPowerOn && (summary.getLoadPower() - summary.getPvPower()) > histeresis) {
             // 発電電力<消費電力のとき、TDPを下げる
             var powerMode = rigStatus.getRigPowerMode();
             var newPowerMode = powerMode == POWER_MODE.HIGH ? POWER_MODE.MEDIUM

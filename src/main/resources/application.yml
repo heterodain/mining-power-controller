@@ -47,3 +47,6 @@ control:
     power-off-duration: 10
     # 15分毎の冷却FAN動作時間(秒)
     duration: 20
+  tdp:
+    # TDPの調整感度(ワット) ※値を大きくするほど細かな発電量の変化に影響されにくくなる(20くらいが目安)
+    hysteresis: 20

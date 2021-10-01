@@ -18,6 +18,8 @@ public class ControlConfig {
     private Power power;
     /** ファン制御の設定 */
     private Fan fan;
+    /** TDP制御の設定 */
+    private Tdp tdp;
 
     /**
      * 電源制御の設定
@@ -67,5 +69,14 @@ public class ControlConfig {
         private Integer powerOffDuration;
         /** 15分毎の冷却FAN動作時間(秒) */
         private Integer duration;
+    }
+
+    /**
+     * TDP制御の設定
+     */
+    @Data
+    public static class Tdp {
+        /** 調整感度(ワット) */
+        private Double hysteresis;
     }
 }
