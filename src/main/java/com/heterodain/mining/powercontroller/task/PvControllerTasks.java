@@ -1,7 +1,8 @@
 package com.heterodain.mining.powercontroller.task;
 
-import java.io.IOException;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -84,6 +85,8 @@ public class PvControllerTasks {
     private Future<?> fanStopFuture;
     /** リグの状態 */
     private RigStatus rigStatus;
+    /** PC起動時刻 */
+    private LocalDateTime pcStartTime;
 
     /**
      * 初期化
@@ -198,6 +201,7 @@ public class PvControllerTasks {
                 pcPowerSw.high();
                 Thread.sleep(300);
                 pcPowerSw.low();
+                pcStartTime = LocalDateTime.now();
 
                 log.info("冷却ファンを始動します。");
                 if (fanStopFuture != null && !fanStopFuture.isDone()) {
@@ -288,10 +292,14 @@ public class PvControllerTasks {
             fifteenMinDatas.clear();
         }
 
+        if (pcStartTime == null || ChronoUnit.MINUTES.between(pcStartTime, LocalDateTime.now()) < 15) {
+            return;
+        }
+
+        boolean pcPowerOn = pcPowerStatus.isHigh();
         Double histeresis = controlConfig.getTdp().getHysteresis();
 
         // TDP制御
-        boolean pcPowerOn = pcPowerStatus.isHigh();
         if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
             // 発電電力>消費電力のとき、TDPを上げる
             var powerMode = rigStatus.getRigPowerMode();
