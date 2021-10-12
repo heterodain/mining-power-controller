@@ -87,6 +87,8 @@ public class PvControllerTasks {
     private RigStatus rigStatus;
     /** PC起動時刻 */
     private LocalDateTime pcStartTime;
+    /** シャットダウン要求 */
+    private Boolean shutdownRequest = false;
 
     /**
      * 初期化
@@ -210,8 +212,8 @@ public class PvControllerTasks {
                 Thread.sleep(100);
                 fanPowerSw.high();
 
-            } else if (pcPowerOn && powerOffCondition.lessEqual(summary.getPvPower(), summary.getBattSOC(),
-                    summary.getBattVolt(), summary.getStage())) {
+            } else if (shutdownRequest || (pcPowerOn && powerOffCondition.lessEqual(summary.getPvPower(),
+                    summary.getBattSOC(), summary.getBattVolt(), summary.getStage()))) {
                 // 設定条件以下のとき、PC電源OFF
                 log.info("PC電源をOFFします。");
                 pcPowerSw.high();
@@ -234,6 +236,8 @@ public class PvControllerTasks {
                     log.info("冷却ファンを停止します。");
                     fanPowerSw.low();
                 });
+
+                shutdownRequest = false;
             }
 
         } catch (Exception e) {
@@ -292,6 +296,7 @@ public class PvControllerTasks {
             fifteenMinDatas.clear();
         }
 
+        // PC起動後15分間はTDP制御しない
         if (pcStartTime == null || ChronoUnit.MINUTES.between(pcStartTime, LocalDateTime.now()) < 15) {
             return;
         }
@@ -325,6 +330,11 @@ public class PvControllerTasks {
                     rigStatus.setRigPowerMode(newPowerMode);
                 }
             }
+        }
+
+        // 起動失敗時にシャットダウン
+        if (pcPowerOn && summary.getLoadPower() < 100D) {
+            shutdownRequest = true;
         }
     }
 
