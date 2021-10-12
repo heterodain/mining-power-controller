@@ -181,8 +181,8 @@ public class PvControllerTasks {
             var powerOnCondition = powerConfig.getPowerOnCondition();
             var powerOffCondition = powerConfig.getPowerOffCondition();
 
-            if (!pcPowerOn
-                    && powerOnCondition.compare(summary.getStage(), summary.getBattSOC(), summary.getBattVolt()) >= 0) {
+            if (!pcPowerOn && powerOnCondition.graterEqual(summary.getPvPower(), summary.getBattSOC(),
+                    summary.getBattVolt(), summary.getStage())) {
                 // 設定条件以上のとき、PC電源ON
                 log.info("負荷出力をONします。");
 
@@ -210,8 +210,8 @@ public class PvControllerTasks {
                 Thread.sleep(100);
                 fanPowerSw.high();
 
-            } else if (pcPowerOn && powerOffCondition.compare(summary.getStage(), summary.getBattSOC(),
-                    summary.getBattVolt()) <= 0) {
+            } else if (pcPowerOn && powerOffCondition.lessEqual(summary.getPvPower(), summary.getBattSOC(),
+                    summary.getBattVolt(), summary.getStage())) {
                 // 設定条件以下のとき、PC電源OFF
                 log.info("PC電源をOFFします。");
                 pcPowerSw.high();

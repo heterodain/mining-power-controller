@@ -26,20 +26,24 @@ service:
 control:
   power:
     # 電源ONする条件(OR)
-    ## stage: 充電ステージに応じて制御(BOOST/EQULIZATION/FLOAT/NO_CHARGING)
-    ## soc: バッテリー残量に応じて制御(91%目安) ※SOCの値はあまりあてにならない
-    ## voltage: 電圧に応じで制御(バッテリーの種類に応じて要調整 - 開放型で29.1, 密閉型で28.8くらいが目安)
+    ## voltage: 電圧(V)に応じで制御(バッテリーの種類に応じて要調整 - 車用バッテリーは29.1, リン酸鉄リチウムイオンバッテリーは26.8くらいが目安)
+    ## power: 発電電力(W)に応じて制御
+    ## soc: バッテリー残量(%)に応じて制御(91目安) ※SOCの値はあまりあてにならない
+    ## stage: 充電ステージに応じて制御(NO_CHARGING/BOOST/EQULIZATION/FLOAT)
     power-on-condition:
-      voltage: 29.1
+      voltage: 26.8
+      power: 140.0
       # soc: 91.0
       stage: EQULIZATION
 
     # 電源OFFする条件(OR)
-    ## stage: 充電ステージに応じて制御(BOOST/EQULIZATION/FLOAT/NO_CHARGING)
-    ## soc: バッテリー残量に応じて制御(30%目安) ※SOCの値はあまりあてにならない
-    ## voltage: 電圧に応じで制御(24.0くらいが目安)
+    ## voltage: 電圧(V)に応じで制御(バッテリーの種類に応じて要調整 - 車用バッテリーは24.0, リン酸鉄リチウムイオンバッテリーは25.9くらいが目安)
+    ## power: 発電電力(W)に応じて制御
+    ## soc: バッテリー残量(%)に応じて制御(30目安) ※SOCの値はあまりあてにならない
+    ## stage: 充電ステージに応じて制御(NO_CHARGING/BOOST/EQULIZATION/FLOAT)
     power-off-condition:
-      voltage: 24.0
+      voltage: 25.9
+      # power: 10.0
       # soc: 30.0
       # stage: NO_CHARGING
   fan:
@@ -48,5 +52,5 @@ control:
     # 15分毎の冷却FAN動作時間(秒)
     duration: 20
   tdp:
-    # TDPの調整感度(ワット) ※値を大きくするほど細かな発電量の変化に影響されにくくなる(20くらいが目安)
+    # TDPの調整感度(W) ※値を大きくするほど細かな発電量の変化に影響されにくくなる(20くらいが目安)
     hysteresis: 20
