@@ -130,7 +130,7 @@ public class PvControllerTasks {
         var nicehashConfig = serviceConfig.getNicehash();
         var serverTime = nicehashService.getServerTime();
         rigStatus = nicehashService.getRigStatus(nicehashConfig, serverTime);
-        log.debug("リグの状態: {}", rigStatus);
+        log.info("リグの状態: {}", rigStatus);
 
         initialized = true;
     }
