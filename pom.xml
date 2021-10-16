@@ -10,7 +10,7 @@
 
 	<groupId>com.heterodain</groupId>
 	<artifactId>mining-powercontroller</artifactId>
-	<version>1.3</version>
+	<version>1.4</version>
 	<name>mining-power-controller</name>
 
 	<properties>

@@ -1,7 +1,8 @@
 package com.heterodain.mining.powercontroller.task;
 
-import java.io.IOException;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -78,10 +79,16 @@ public class PvControllerTasks {
     private List<RealtimeData> threeSecDatas = new ArrayList<>();
     /** 計測データ(30秒値) */
     private List<RealtimeData> thirtySecDatas = new ArrayList<>();
+    /** 計測データ(15分値) */
+    private List<RealtimeData> fifteenMinDatas = new ArrayList<>();
     /** ファン停止タスク実行結果 */
     private Future<?> fanStopFuture;
     /** リグの状態 */
     private RigStatus rigStatus;
+    /** PC起動時刻 */
+    private LocalDateTime pcStartTime;
+    /** シャットダウン要求 */
+    private Boolean shutdownRequest = false;
 
     /**
      * 初期化
@@ -123,7 +130,7 @@ public class PvControllerTasks {
         var nicehashConfig = serviceConfig.getNicehash();
         var serverTime = nicehashService.getServerTime();
         rigStatus = nicehashService.getRigStatus(nicehashConfig, serverTime);
-        log.debug("リグの状態: {}", rigStatus);
+        log.info("リグの状態: {}", rigStatus);
 
         initialized = true;
     }
@@ -150,7 +157,7 @@ public class PvControllerTasks {
     /**
      * 30秒毎に電源制御
      */
-    @Scheduled(cron = "0/30 * * * * *")
+    @Scheduled(fixedDelay = 30 * 1000, initialDelay = 30 * 1000)
     public void powerControl() {
         if (threeSecDatas.size() < 5) {
             return;
@@ -176,8 +183,8 @@ public class PvControllerTasks {
             var powerOnCondition = powerConfig.getPowerOnCondition();
             var powerOffCondition = powerConfig.getPowerOffCondition();
 
-            if (!pcPowerOn
-                    && powerOnCondition.compare(summary.getStage(), summary.getBattSOC(), summary.getBattVolt()) >= 0) {
+            if (!pcPowerOn && powerOnCondition.graterEqual(summary.getPvPower(), summary.getBattSOC(),
+                    summary.getBattVolt(), summary.getStage())) {
                 // 設定条件以上のとき、PC電源ON
                 log.info("負荷出力をONします。");
 
@@ -196,6 +203,7 @@ public class PvControllerTasks {
                 pcPowerSw.high();
                 Thread.sleep(300);
                 pcPowerSw.low();
+                pcStartTime = LocalDateTime.now();
 
                 log.info("冷却ファンを始動します。");
                 if (fanStopFuture != null && !fanStopFuture.isDone()) {
@@ -204,8 +212,8 @@ public class PvControllerTasks {
                 Thread.sleep(100);
                 fanPowerSw.high();
 
-            } else if (pcPowerOn && powerOffCondition.compare(summary.getStage(), summary.getBattSOC(),
-                    summary.getBattVolt()) <= 0) {
+            } else if (shutdownRequest || (pcPowerOn && powerOffCondition.lessEqual(summary.getPvPower(),
+                    summary.getBattSOC(), summary.getBattVolt(), summary.getStage()))) {
                 // 設定条件以下のとき、PC電源OFF
                 log.info("PC電源をOFFします。");
                 pcPowerSw.high();
@@ -228,6 +236,8 @@ public class PvControllerTasks {
                     log.info("冷却ファンを停止します。");
                     fanPowerSw.low();
                 });
+
+                shutdownRequest = false;
             }
 
         } catch (Exception e) {
@@ -236,10 +246,10 @@ public class PvControllerTasks {
     }
 
     /**
-     * 3分毎にTDP制御 & Ambientにデータ送信
+     * 3分毎にAmbientにデータ送信
      */
     @Scheduled(cron = "0 */3 * * * *")
-    public void tdpControlAndSendAmbient() throws Exception {
+    public void sendAmbient() throws Exception {
         if (thirtySecDatas.isEmpty()) {
             return;
         }
@@ -250,12 +260,52 @@ public class PvControllerTasks {
             summary = RealtimeData.summary(thirtySecDatas);
             thirtySecDatas.clear();
         }
+        synchronized (fifteenMinDatas) {
+            fifteenMinDatas.add(summary);
+        }
 
         // PCの電源状態取得
         boolean pcPowerOn = pcPowerStatus.isHigh();
 
+        // Ambient送信
+        try {
+            var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
+                    summary.getBattSOC(), pcPowerOn ? 1D : 0D };
+            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},battSOC={},pcPowerOn={}", sendDatas[0],
+                    sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
+
+            ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
+        } catch (Exception e) {
+            log.warn("Ambientへのデータ送信に失敗しました。", e);
+        }
+    }
+
+    /**
+     * 15分毎にTDP制御
+     */
+    @Scheduled(fixedDelay = 15 * 60 * 1000, initialDelay = 15 * 60 * 1000)
+    public void tdpControl() throws Exception {
+        if (fifteenMinDatas.isEmpty()) {
+            return;
+        }
+
+        // 集計
+        RealtimeData summary;
+        synchronized (fifteenMinDatas) {
+            summary = RealtimeData.summary(fifteenMinDatas);
+            fifteenMinDatas.clear();
+        }
+
+        // PC起動後15分間はTDP制御しない
+        if (pcStartTime == null || ChronoUnit.MINUTES.between(pcStartTime, LocalDateTime.now()) < 15) {
+            return;
+        }
+
+        boolean pcPowerOn = pcPowerStatus.isHigh();
+        Double histeresis = controlConfig.getTdp().getHysteresis();
+
         // TDP制御
-        if (pcPowerOn && summary.getPvPower() > summary.getLoadPower()) {
+        if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
             // 発電電力>消費電力のとき、TDPを上げる
             var powerMode = rigStatus.getRigPowerMode();
             var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
@@ -268,7 +318,7 @@ public class PvControllerTasks {
                 }
             }
 
-        } else if (pcPowerOn && summary.getPvPower() < summary.getLoadPower()) {
+        } else if (pcPowerOn && (summary.getLoadPower() - summary.getPvPower()) > histeresis) {
             // 発電電力<消費電力のとき、TDPを下げる
             var powerMode = rigStatus.getRigPowerMode();
             var newPowerMode = powerMode == POWER_MODE.HIGH ? POWER_MODE.MEDIUM
@@ -282,16 +332,9 @@ public class PvControllerTasks {
             }
         }
 
-        // Ambient送信
-        try {
-            var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
-                    summary.getBattSOC(), pcPowerOn ? 1D : 0D };
-            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},battSOC={},pcPowerOn={}", sendDatas[0],
-                    sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
-
-            ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
-        } catch (Exception e) {
-            log.warn("Ambientへのデータ送信に失敗しました。", e);
+        // 起動失敗時にシャットダウン
+        if (pcPowerOn && summary.getLoadPower() < 100D) {
+            shutdownRequest = true;
         }
     }
 

@@ -18,6 +18,8 @@ public class ControlConfig {
     private Power power;
     /** ファン制御の設定 */
     private Fan fan;
+    /** TDP制御の設定 */
+    private Tdp tdp;
 
     /**
      * 電源制御の設定
@@ -35,26 +37,49 @@ public class ControlConfig {
      */
     @Data
     public static class PowerCondition {
-        /** 充電ステージ */
-        private STAGE stage;
-        /** 残量(%) */
-        private Double soc;
         /** 電圧(V) */
         private Double voltage;
+        /** 発電電力(W) */
+        private Double power;
+        /** 残量(%) */
+        private Double soc;
+        /** 充電ステージ */
+        private STAGE stage;
 
-        /** 比較する */
-        public int compare(STAGE _stage, Double _soc, Double _voltage) {
+        /** 引数の値が設定値以上かどうか */
+        public boolean graterEqual(Double _power, Double _soc, Double _voltage, STAGE _stage) {
             int ret = 0;
-            if (voltage != null) {
+            if (power != null) {
+                ret = _power == power ? 0 : _power < power ? -1 : 1;
+            }
+            if (voltage != null && ret <= 0) {
                 ret = _voltage == voltage ? 0 : _voltage < voltage ? -1 : 1;
             }
-            if (soc != null && ret == 0) {
+            if (soc != null && ret <= 0) {
                 ret = _soc == soc ? 0 : _soc < soc ? -1 : 1;
             }
-            if (stage != null && ret == 0) {
+            if (stage != null && ret <= 0) {
                 ret = _stage.getIndex() - stage.getIndex();
             }
-            return ret;
+            return ret >= 0;
+        }
+
+        /** 引数の値が設定値以下かどうか */
+        public boolean lessEqual(Double _power, Double _soc, Double _voltage, STAGE _stage) {
+            int ret = 0;
+            if (power != null) {
+                ret = _power == power ? 0 : _power < power ? -1 : 1;
+            }
+            if (voltage != null && ret <= 0) {
+                ret = _voltage == voltage ? 0 : _voltage < voltage ? -1 : 1;
+            }
+            if (soc != null && ret <= 0) {
+                ret = _soc == soc ? 0 : _soc < soc ? -1 : 1;
+            }
+            if (stage != null && ret <= 0) {
+                ret = _stage.getIndex() - stage.getIndex();
+            }
+            return ret <= 0;
         }
     }
 
@@ -67,5 +92,14 @@ public class ControlConfig {
         private Integer powerOffDuration;
         /** 15分毎の冷却FAN動作時間(秒) */
         private Integer duration;
+    }
+
+    /**
+     * TDP制御の設定
+     */
+    @Data
+    public static class Tdp {
+        /** 調整感度(ワット) */
+        private Double hysteresis;
     }
 }
