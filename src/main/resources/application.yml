@@ -26,13 +26,13 @@ service:
 control:
   power:
     # 電源ONする条件(OR)
-    ## voltage: 電圧(V)に応じで制御(バッテリーの種類に応じて要調整 - 車用バッテリーは29.1, リン酸鉄リチウムイオンバッテリーは27.0くらいが目安)
+    ## voltage: 電圧(V)に応じで制御(バッテリーの種類に応じて要調整 - 車用バッテリーは29.1, リン酸鉄リチウムイオンバッテリーは26.9くらいが目安)
     ## power: 発電電力(W)に応じて制御
     ## soc: バッテリー残量(%)に応じて制御(91目安) ※SOCの値はあまりあてにならない
     ## stage: 充電ステージに応じて制御(NO_CHARGING/BOOST/EQULIZATION/FLOAT)
     power-on-condition:
-      voltage: 27.0
-      power: 140.0
+      voltage: 26.9
+      # power: 140.0
       # soc: 91.0
       stage: EQULIZATION
 
