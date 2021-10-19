@@ -226,16 +226,18 @@ public class PvControllerTasks {
                 pvControllerDevice.changeLoadSwith(pvControllerConfig, conn, false);
 
                 // 指定時間待ってから冷却ファンを止める
-                fanStopFuture = taskExecutor.submit(() -> {
-                    try {
-                        Thread.sleep(controlConfig.getFan().getPowerOffDuration() * 60 * 1000);
-                    } catch (InterruptedException ignore) {
-                        // NOP
-                    }
+                if (taskExecutor.getActiveCount() == 0) {
+                    fanStopFuture = taskExecutor.submit(() -> {
+                        try {
+                            Thread.sleep(controlConfig.getFan().getPowerOffDuration() * 60 * 1000);
+                        } catch (InterruptedException ignore) {
+                            // NOP
+                        }
 
-                    log.info("冷却ファンを停止します。");
-                    fanPowerSw.low();
-                });
+                        log.info("冷却ファンを停止します。");
+                        fanPowerSw.low();
+                    });
+                }
 
                 shutdownRequest = false;
             }
