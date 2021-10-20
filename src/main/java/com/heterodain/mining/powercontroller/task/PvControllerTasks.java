@@ -96,7 +96,7 @@ public class PvControllerTasks {
     @PostConstruct
     public void init() throws Exception {
         // GPIO初期化
-        log.info("GIPOを初期化します。");
+        log.info("GPIOを初期化します。");
         gpio = GpioFactory.getInstance();
         loadPowerRegisterSw = initOutputGPIO(RaspiPin.GPIO_27, "LOAD_POWER_REG_SW", PinState.LOW);
         pcPowerSw = initOutputGPIO(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
