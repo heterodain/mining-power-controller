@@ -77,8 +77,8 @@ public class PvControllerTasks {
     private boolean initialized = false;
     /** 計測データ(3秒値) */
     private List<RealtimeData> threeSecDatas = new ArrayList<>();
-    /** 計測データ(30秒値) */
-    private List<RealtimeData> thirtySecDatas = new ArrayList<>();
+    /** 計測データ(1分値) */
+    private List<RealtimeData> oneMinDatas = new ArrayList<>();
     /** 計測データ(15分値) */
     private List<RealtimeData> fifteenMinDatas = new ArrayList<>();
     /** ファン停止タスク実行結果 */
@@ -155,9 +155,9 @@ public class PvControllerTasks {
     }
 
     /**
-     * 30秒毎に電源制御
+     * 1分毎に電源制御
      */
-    @Scheduled(fixedDelay = 30 * 1000, initialDelay = 30 * 1000)
+    @Scheduled(fixedDelay = 1 * 60 * 1000, initialDelay = 1 * 60 * 1000)
     public void powerControl() {
         if (threeSecDatas.size() < 5) {
             return;
@@ -169,12 +169,12 @@ public class PvControllerTasks {
             summary = RealtimeData.summary(threeSecDatas);
             threeSecDatas.clear();
         }
-        synchronized (thirtySecDatas) {
-            thirtySecDatas.add(summary);
+        synchronized (oneMinDatas) {
+            oneMinDatas.add(summary);
         }
 
         // PCの電源状態取得
-        boolean pcPowerOn = pcPowerStatus.isHigh();
+        var pcPowerOn = pcPowerStatus.isHigh();
 
         // 電源制御
         try {
@@ -252,22 +252,22 @@ public class PvControllerTasks {
      */
     @Scheduled(cron = "0 */3 * * * *")
     public void sendAmbient() throws Exception {
-        if (thirtySecDatas.isEmpty()) {
+        if (oneMinDatas.isEmpty()) {
             return;
         }
 
         // 集計
         RealtimeData summary;
-        synchronized (thirtySecDatas) {
-            summary = RealtimeData.summary(thirtySecDatas);
-            thirtySecDatas.clear();
+        synchronized (oneMinDatas) {
+            summary = RealtimeData.summary(oneMinDatas);
+            oneMinDatas.clear();
         }
         synchronized (fifteenMinDatas) {
             fifteenMinDatas.add(summary);
         }
 
         // PCの電源状態取得
-        boolean pcPowerOn = pcPowerStatus.isHigh();
+        var pcPowerOn = pcPowerStatus.isHigh();
 
         // Ambient送信
         try {
@@ -303,8 +303,8 @@ public class PvControllerTasks {
             return;
         }
 
-        boolean pcPowerOn = pcPowerStatus.isHigh();
-        Double histeresis = controlConfig.getTdp().getHysteresis();
+        var pcPowerOn = pcPowerStatus.isHigh();
+        var histeresis = controlConfig.getTdp().getHysteresis();
 
         // TDP制御
         if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
@@ -346,7 +346,7 @@ public class PvControllerTasks {
     @Scheduled(cron = "0 */15 * * * *")
     public void fanControl() {
         // PCが電源OFFかつ、クーリング中でなければファンを回す
-        boolean pcPowerOn = pcPowerStatus.isHigh();
+        var pcPowerOn = pcPowerStatus.isHigh();
         if (!pcPowerOn && taskExecutor.getActiveCount() == 0) {
             try {
                 log.info("冷却ファンを始動します。");
@@ -381,12 +381,12 @@ public class PvControllerTasks {
         while (true) {
             try {
                 Thread.sleep(3000);
-                GpioPinDigitalOutput result = gpio.provisionDigitalOutputPin(pin, name, initial);
+                var result = gpio.provisionDigitalOutputPin(pin, name, initial);
                 result.setShutdownOptions(true, initial);
                 return result;
             } catch (Exception e) {
                 log.warn("", e);
-                log.warn(pin + "の初期化に失敗しました。リトライします。");
+                log.warn("{}の初期化に失敗しました。リトライします。", pin);
             }
         }
     }
@@ -398,7 +398,7 @@ public class PvControllerTasks {
                 return gpio.provisionDigitalInputPin(pin, name, pull);
             } catch (Exception e) {
                 log.warn("", e);
-                log.warn(pin + "の初期化に失敗しました。リトライします。");
+                log.warn("{}の初期化に失敗しました。リトライします。", pin);
             }
         }
     }
