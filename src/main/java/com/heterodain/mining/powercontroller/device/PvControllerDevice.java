@@ -116,16 +116,30 @@ public class PvControllerDevice {
         log.debug("Coil={}", res.getCoil());
     }
 
+    /**
+     * データ
+     */
     @Getter
     @Setter
     @ToString
     public static class RealtimeData {
-        public Double pvPower;
-        public Double battVolt;
-        public Double loadPower;
-        public Double battSOC;
-        public STAGE stage;
+        /** 発電電力(W) */
+        private Double pvPower;
+        /** バッテリー電圧(V) */
+        private Double battVolt;
+        /** 負荷電力(W) */
+        private Double loadPower;
+        /** バッテリー残量(%) */
+        private Double battSOC;
+        /** 充電ステージ */
+        private STAGE stage;
 
+        /**
+         * データの平均値取得
+         * 
+         * @param datas データ
+         * @return 平均値
+         */
         public static RealtimeData summary(List<RealtimeData> datas) {
             var summary = new RealtimeData();
             summary.setPvPower(datas.stream().mapToDouble(RealtimeData::getPvPower).average().orElse(0D));
@@ -138,6 +152,9 @@ public class PvControllerDevice {
         }
     }
 
+    /**
+     * 充電ステージ
+     */
     @AllArgsConstructor
     @Getter
     public static enum STAGE {
