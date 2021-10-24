@@ -88,7 +88,7 @@ public class PvControllerTasks {
     /** PC起動時刻 */
     private LocalDateTime pcStartTime;
     /** シャットダウン要求 */
-    private Boolean shutdownRequest = false;
+    private boolean shutdownRequest = false;
 
     /**
      * 初期化
