@@ -3,22 +3,25 @@
 バッテリー残量に応じてPCの電源をON/OFFするプログラムです。  
 (This program is turned on / off the PC power by battery remain capacity)
 
-![SpringBoot](https://img.shields.io/badge/SpringBoot-2.5.3-green.svg) 
+![SpringBoot](https://img.shields.io/badge/SpringBoot-2.5.4-green.svg) 
 ![Lombok](https://img.shields.io/badge/Lombok-1.18.20-green.svg) 
 ![j2mod](https://img.shields.io/badge/j2mod-2.7.0-green.svg)
 ![pi4j](https://img.shields.io/badge/pi4j-1.3-green.svg)
 
 [![Video1](https://img.youtube.com/vi/rS7NZO7rW9k/0.jpg)](https://www.youtube.com/watch?v=rS7NZO7rW9k)
-(using v1.0)
+(use v1.0)
 
 [![Video2](https://img.youtube.com/vi/DXjwRsGMiQ4/0.jpg)](https://www.youtube.com/watch?v=DXjwRsGMiQ4)
-(using v1.1)
+(use v1.1)
 
 [![Video3](https://img.youtube.com/vi/WXjLHTAnlC4/0.jpg)](https://www.youtube.com/watch?v=WXjLHTAnlC4)
-(using v1.2)
+(use v1.2)
 
 [![Video](https://img.youtube.com/vi/li6INqr9ar8/0.jpg)](https://www.youtube.com/watch?v=li6INqr9ar8)
-(using v1.3)
+(use v1.3)
+
+[![Video](https://img.youtube.com/vi/_N5hQMTwDSY/0.jpg)](https://www.youtube.com/watch?v=_N5hQMTwDSY)
+(use v1.4)
 
 ## 必要要件 (Requirement)
 
