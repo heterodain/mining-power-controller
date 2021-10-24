@@ -119,6 +119,9 @@ public class NicehashService {
         }
     }
 
+    /**
+     * 認証用リクエストヘッダ構築
+     */
     private Map<String, String> createAuthHeader(Nicehash config, String time, String method, URI uri, String body)
             throws Exception {
         var nonce = UUID.randomUUID().toString();
@@ -158,18 +161,30 @@ public class NicehashService {
         return headers;
     }
 
+    /**
+     * パワーモード
+     */
     public static enum POWER_MODE {
         UNKNOWN, MIXED, HIGH, MEDIUM, LOW;
     }
 
+    /**
+     * リグのステータス
+     */
     public static enum MINER_STATUS {
         BENCHMARKING, MINING, STOPPED, OFFLINE, ERROR, PENDING, DISABLED, TRANSFERRED, UNKNOWN;
     }
 
+    /**
+     * GPUのステータス
+     */
     public static enum DEVICE_STATUS {
         UNKNOWN, DISABLED, INACTIVE, MINING, BENCHMARKING, ERROR, PENDING, OFFLINE;
     }
 
+    /**
+     * リグの情報
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     @Data
     public static class RigStatus {
@@ -180,6 +195,9 @@ public class NicehashService {
         private POWER_MODE rigPowerMode;
     }
 
+    /**
+     * GPUの情報
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     @Data
     public static class Device {

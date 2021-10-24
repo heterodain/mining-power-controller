@@ -150,7 +150,7 @@ public class PvControllerTasks {
                 threeSecDatas.add(data);
             }
         } catch (Exception e) {
-            log.warn("PVコントローラーへのアクセスに失敗しました。", e);
+            log.error("PVコントローラーへのアクセスに失敗しました。", e);
         }
     }
 
@@ -243,7 +243,7 @@ public class PvControllerTasks {
             }
 
         } catch (Exception e) {
-            log.warn("電源制御に失敗しました。", e);
+            log.error("電源制御に失敗しました。", e);
         }
     }
 
@@ -278,7 +278,7 @@ public class PvControllerTasks {
 
             ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
         } catch (Exception e) {
-            log.warn("Ambientへのデータ送信に失敗しました。", e);
+            log.error("Ambientへのデータ送信に失敗しました。", e);
         }
     }
 
@@ -355,7 +355,7 @@ public class PvControllerTasks {
                 log.info("冷却ファンを停止します。");
                 fanPowerSw.low();
             } catch (Exception e) {
-                log.warn("ファン制御に失敗しました。", e);
+                log.error("ファン制御に失敗しました。", e);
             }
         }
     }
@@ -377,10 +377,10 @@ public class PvControllerTasks {
         initialized = false;
     }
 
-    private GpioPinDigitalOutput initOutputGPIO(Pin pin, String name, PinState initial) {
+    private GpioPinDigitalOutput initOutputGPIO(Pin pin, String name, PinState initial) throws InterruptedException {
         while (true) {
+            Thread.sleep(3000);
             try {
-                Thread.sleep(3000);
                 var result = gpio.provisionDigitalOutputPin(pin, name, initial);
                 result.setShutdownOptions(true, initial);
                 return result;
@@ -391,10 +391,11 @@ public class PvControllerTasks {
         }
     }
 
-    private GpioPinDigitalInput initInputGPIO(Pin pin, String name, PinPullResistance pull) {
+    private GpioPinDigitalInput initInputGPIO(Pin pin, String name, PinPullResistance pull)
+            throws InterruptedException {
         while (true) {
+            Thread.sleep(3000);
             try {
-                Thread.sleep(3000);
                 return gpio.provisionDigitalInputPin(pin, name, pull);
             } catch (Exception e) {
                 log.warn("", e);
