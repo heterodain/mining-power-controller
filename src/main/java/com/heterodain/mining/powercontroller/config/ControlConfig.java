@@ -20,6 +20,8 @@ public class ControlConfig {
     private Fan fan;
     /** TDP制御の設定 */
     private Tdp tdp;
+    /** バッテリーヒーターの設定 */
+    private BatteryHeater batteryHeater;
 
     /**
      * 電源制御の設定
@@ -101,5 +103,16 @@ public class ControlConfig {
     public static class Tdp {
         /** 調整感度(ワット) */
         private Double hysteresis;
+    }
+
+    /**
+     * バッテリーヒーターの設定
+     */
+    @Data
+    public static class BatteryHeater {
+        /** 温度範囲 */
+        private Double[] temperatureRange;
+        /** 制御時間帯 */
+        private String[] hourRange;
     }
 }
