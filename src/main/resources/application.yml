@@ -1,7 +1,10 @@
 # デバイス設定
-device.pv-controller:
-  com-port: "ttyUSB0"
-  unit-id: 1
+device:
+  pv-controller:
+    com-port: "ttyUSB0"
+    unit-id: 1
+  lm75a:
+    address: 0x48
 
 # サービス設定
 service:
@@ -54,3 +57,8 @@ control:
   tdp:
     # TDPの調整感度(W) ※値を大きくするほど細かな発電量の変化に影響されにくくなる(20くらいが目安)
     hysteresis: 20
+  battery-heater:
+    # バッテリー温度範囲(ヒーター始動℃,停止℃)
+    temperature-range: [5, 8]
+    # 制御時間帯(開始時刻,終了時刻)
+    hour-range: ["05:00:00", "18:00:00"]

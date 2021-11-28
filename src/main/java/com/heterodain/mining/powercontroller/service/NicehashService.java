@@ -22,7 +22,9 @@ import org.apache.commons.codec.binary.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
 import lombok.var;
 import lombok.extern.slf4j.Slf4j;
 
@@ -164,8 +166,12 @@ public class NicehashService {
     /**
      * パワーモード
      */
+    @AllArgsConstructor
+    @Getter
     public static enum POWER_MODE {
-        UNKNOWN, MIXED, HIGH, MEDIUM, LOW;
+        UNKNOWN(5), MIXED(15), HIGH(9), MEDIUM(11), LOW(12);
+
+        double statusValue;
     }
 
     /**

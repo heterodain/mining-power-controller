@@ -34,6 +34,7 @@ public class AppConfig {
     public ThreadPoolTaskScheduler getTaskScheduler() {
         var taskScheduler = new ThreadPoolTaskScheduler();
         taskScheduler.setPoolSize(5); // 5スレッド同時実行
+        taskScheduler.setThreadNamePrefix("task");
         return taskScheduler;
     }
 
@@ -47,6 +48,7 @@ public class AppConfig {
         ThreadPoolTaskExecutor pool = new ThreadPoolTaskExecutor();
         pool.setCorePoolSize(1); // 1スレッド同時実行
         pool.setWaitForTasksToCompleteOnShutdown(false);
+        pool.setThreadNamePrefix("exec");
         pool.initialize();
         return pool;
     }

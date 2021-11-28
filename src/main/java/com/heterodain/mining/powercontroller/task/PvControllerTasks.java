@@ -1,9 +1,12 @@
 package com.heterodain.mining.powercontroller.task;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Future;
 
@@ -15,6 +18,7 @@ import com.ghgande.j2mod.modbus.util.SerialParameters;
 import com.heterodain.mining.powercontroller.config.DeviceConfig;
 import com.heterodain.mining.powercontroller.config.ServiceConfig;
 import com.heterodain.mining.powercontroller.config.ControlConfig;
+import com.heterodain.mining.powercontroller.device.Lm75aDevice;
 import com.heterodain.mining.powercontroller.device.PvControllerDevice;
 import com.heterodain.mining.powercontroller.device.PvControllerDevice.RealtimeData;
 import com.heterodain.mining.powercontroller.service.AmbientService;
@@ -29,6 +33,7 @@ import com.pi4j.io.gpio.Pin;
 import com.pi4j.io.gpio.PinPullResistance;
 import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
+import com.pi4j.io.i2c.I2CFactory.UnsupportedBusNumberException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -54,6 +59,8 @@ public class PvControllerTasks {
     @Autowired
     private PvControllerDevice pvControllerDevice;
     @Autowired
+    private Lm75aDevice lm75aDevice;
+    @Autowired
     private AmbientService ambientService;
     @Autowired
     private NicehashService nicehashService;
@@ -71,6 +78,8 @@ public class PvControllerTasks {
     private GpioPinDigitalOutput pcPowerSw;
     /** 冷却ファンオンオフ制御GPIO */
     private GpioPinDigitalOutput fanPowerSw;
+    /** バッテリーヒーターオンオフ制御GPIO */
+    private GpioPinDigitalOutput battHeaterSw;
     /** PC電源状態監視GPIO */
     private GpioPinDigitalInput pcPowerStatus;
     /** 初期化済みフラグ */
@@ -101,6 +110,7 @@ public class PvControllerTasks {
         loadPowerRegisterSw = initOutputGPIO(RaspiPin.GPIO_27, "LOAD_POWER_REG_SW", PinState.LOW);
         pcPowerSw = initOutputGPIO(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
         fanPowerSw = initOutputGPIO(RaspiPin.GPIO_02, "FAN_POWER_SW", PinState.LOW);
+        battHeaterSw = initOutputGPIO(RaspiPin.GPIO_24, "BATT_HEATER_SW", PinState.LOW);
         pcPowerStatus = initInputGPIO(RaspiPin.GPIO_00, "PC_POWER_STATUS", PinPullResistance.PULL_DOWN);
 
         // PVコントローラー初期化
@@ -266,19 +276,66 @@ public class PvControllerTasks {
             fifteenMinDatas.add(summary);
         }
 
-        // PCの電源状態取得
-        var pcPowerOn = pcPowerStatus.isHigh();
+        // バッテリー温度取得
+        Double battTemp;
+        try {
+            var address = deviceConfig.getLm75a().getAddress();
+            battTemp = lm75aDevice.readCurrent(address);
+        } catch (Exception e) {
+            log.warn("バッテリー温度の取得に失敗しました。", e);
+            battTemp = null;
+        }
 
         // Ambient送信
         try {
             var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
-                    summary.getBattSOC(), pcPowerOn ? 1D : 0D };
-            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},battSOC={},pcPowerOn={}", sendDatas[0],
+                    rigStatus.getRigPowerMode().getStatusValue(), battTemp };
+            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},rigPowerMode={},battTemp={}", sendDatas[0],
                     sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
 
             ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
         } catch (Exception e) {
             log.error("Ambientへのデータ送信に失敗しました。", e);
+        }
+    }
+
+    /**
+     * 5分毎にバッテリー温度制御
+     * 
+     * @throws IOException
+     * @throws UnsupportedBusNumberException
+     */
+    @Scheduled(cron = "0 */5 * * * *")
+    public void batteryTempControl() throws UnsupportedBusNumberException, IOException {
+        var heaterConfig = controlConfig.getBatteryHeater();
+        var hourRange = heaterConfig.getHourRange();
+        var tempRange = heaterConfig.getTemperatureRange();
+
+        // 時間帯チェック
+        if (hourRange != null) {
+            var range = Arrays.stream(hourRange).map(LocalTime::parse).toArray(LocalTime[]::new);
+            var now = LocalTime.now();
+            if (now.compareTo(range[0]) < 0 || now.compareTo(range[1]) > 0) {
+                return;
+            }
+        }
+
+        // バッテリー温度取得、ヒーター制御
+        double battTemp;
+        try {
+            var address = deviceConfig.getLm75a().getAddress();
+            battTemp = lm75aDevice.readCurrent(address);
+        } catch (Exception e) {
+            log.warn("バッテリー温度の取得に失敗しました。", e);
+            return;
+        }
+
+        if (battTemp < tempRange[0] && battHeaterSw.isLow()) {
+            log.info("バッテリーヒーターを始動します。");
+            battHeaterSw.high();
+        } else if (battTemp > tempRange[1] && battHeaterSw.isHigh()) {
+            log.info("バッテリーヒーターを停止します。");
+            battHeaterSw.low();
         }
     }
 
