@@ -59,6 +59,6 @@ control:
     hysteresis: 20
   battery-heater:
     # バッテリー温度範囲(ヒーター始動℃,停止℃)
-    temperature-range: [8, 12]
+    temperature-range: [5, 8]
     # 制御時間帯(開始時刻,終了時刻)
-    hour-range: ["5:00", "18:00"]
+    hour-range: ["05:00:00", "18:00:00"]
