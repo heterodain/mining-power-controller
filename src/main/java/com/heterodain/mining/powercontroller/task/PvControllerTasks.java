@@ -3,9 +3,7 @@ package com.heterodain.mining.powercontroller.task;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -279,14 +277,20 @@ public class PvControllerTasks {
         }
 
         // バッテリー温度取得
-        var address = deviceConfig.getLm75a().getAddress();
-        var battTemp = lm75aDevice.readCurrent(address);
+        Double battTemp;
+        try {
+            var address = deviceConfig.getLm75a().getAddress();
+            battTemp = lm75aDevice.readCurrent(address);
+        } catch (Exception e) {
+            log.warn("バッテリー温度の取得に失敗しました。", e);
+            battTemp = null;
+        }
 
         // Ambient送信
         try {
             var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
                     rigStatus.getRigPowerMode().getStatusValue(), battTemp };
-            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},battSOC={},pcPowerOn={}", sendDatas[0],
+            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},rigPowerMode={},battTemp={}", sendDatas[0],
                     sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
 
             ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
@@ -296,12 +300,12 @@ public class PvControllerTasks {
     }
 
     /**
-     * 10分毎にバッテリー温度制御
+     * 5分毎にバッテリー温度制御
      * 
      * @throws IOException
      * @throws UnsupportedBusNumberException
      */
-    @Scheduled(cron = "0 */10 * * * *")
+    @Scheduled(cron = "0 */5 * * * *")
     public void batteryTempControl() throws UnsupportedBusNumberException, IOException {
         var heaterConfig = controlConfig.getBatteryHeater();
         var hourRange = heaterConfig.getHourRange();
@@ -311,20 +315,25 @@ public class PvControllerTasks {
         if (hourRange != null) {
             var range = Arrays.stream(hourRange).map(LocalTime::parse).toArray(LocalTime[]::new);
             var now = LocalTime.now();
-            if (now.compareTo(range[0]) < 0 && now.compareTo(range[1]) > 0) {
+            if (now.compareTo(range[0]) < 0 || now.compareTo(range[1]) > 0) {
                 return;
             }
         }
 
-        // バッテリー温度取得
-        var address = deviceConfig.getLm75a().getAddress();
-        var battTemp = lm75aDevice.readCurrent(address);
+        // バッテリー温度取得、ヒーター制御
+        double battTemp;
+        try {
+            var address = deviceConfig.getLm75a().getAddress();
+            battTemp = lm75aDevice.readCurrent(address);
+        } catch (Exception e) {
+            log.warn("バッテリー温度の取得に失敗しました。", e);
+            return;
+        }
 
-        // ヒーター制御
-        if (battTemp < tempRange[0]) {
+        if (battTemp < tempRange[0] && battHeaterSw.isLow()) {
             log.info("バッテリーヒーターを始動します。");
             battHeaterSw.high();
-        } else if (battTemp > tempRange[1]) {
+        } else if (battTemp > tempRange[1] && battHeaterSw.isHigh()) {
             log.info("バッテリーヒーターを停止します。");
             battHeaterSw.low();
         }
