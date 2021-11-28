@@ -34,6 +34,7 @@ public class AppConfig {
     public ThreadPoolTaskScheduler getTaskScheduler() {
         var taskScheduler = new ThreadPoolTaskScheduler();
         taskScheduler.setPoolSize(5); // 5スレッド同時実行
+        taskScheduler.setThreadGroupName("task");
         return taskScheduler;
     }
 

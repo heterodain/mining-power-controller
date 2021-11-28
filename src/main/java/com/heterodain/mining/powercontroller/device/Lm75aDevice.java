@@ -3,7 +3,6 @@ package com.heterodain.mining.powercontroller.device;
 import java.io.IOException;
 
 import com.pi4j.io.i2c.I2CBus;
-import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 import com.pi4j.io.i2c.I2CFactory.UnsupportedBusNumberException;
 
@@ -25,6 +24,9 @@ public class Lm75aDevice {
     public synchronized double readCurrent(int address) throws UnsupportedBusNumberException, IOException {
         var i2cBus = I2CFactory.getInstance(I2CBus.BUS_1);
         var device = i2cBus.getDevice(address);
-        return device.read();
+
+        var buff = new byte[2];
+        device.read(buff, 0, 2);
+        return ((double) (((int) buff[0]) << 8 | Byte.toUnsignedInt(buff[1]))) / 256D;
     }
 }
