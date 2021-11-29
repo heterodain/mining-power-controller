@@ -53,3 +53,11 @@
      ```command
      java -jar mining-powercontroller-1.0.jar
      ```
+
+## 参考情報 (Appendix)
+
+Ambient Channel Setting  
+![AmbientChannelSetting](https://user-images.githubusercontent.com/46586035/143958656-64cb38fa-a412-4286-a296-1b8ea527e1d8.png)
+
+Ambient Chart  
+![AmbientChart](https://user-images.githubusercontent.com/46586035/143958681-d9aabb26-3a0b-4686-9dcd-91a6cc196cd5.png)
