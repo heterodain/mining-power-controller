@@ -316,7 +316,10 @@ public class PvControllerTasks {
             var range = Arrays.stream(hourRange).map(LocalTime::parse).toArray(LocalTime[]::new);
             var now = LocalTime.now();
             if (now.compareTo(range[0]) < 0 || now.compareTo(range[1]) > 0) {
-                battHeaterSw.low();
+                if (battHeaterSw.isHigh()) {
+                    log.info("バッテリーヒーターを停止します。");
+                    battHeaterSw.low();
+                }
                 return;
             }
         }
