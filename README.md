@@ -23,6 +23,11 @@
 [![Video](https://img.youtube.com/vi/_N5hQMTwDSY/0.jpg)](https://www.youtube.com/watch?v=_N5hQMTwDSY)
 (use v1.4)
 
+[![Video](https://img.youtube.com/vi/eX1o_5fpaLc/0.jpg)](https://www.youtube.com/watch?v=eX1o_5fpaLc)
+
+[![Video](https://img.youtube.com/vi/KSrcgBL_NK0/0.jpg)](https://www.youtube.com/watch?v=KSrcgBL_NK0)
+(use v1.5)
+
 ## 必要要件 (Requirement)
 
 - PV コントローラー (PV controller)
