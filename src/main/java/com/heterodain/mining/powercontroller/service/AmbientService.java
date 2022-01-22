@@ -66,8 +66,8 @@ public class AmbientService {
         var conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
-        conn.setConnectTimeout(10000);
-        conn.setReadTimeout(10000);
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(30000);
         conn.setDoOutput(true);
         try (var os = conn.getOutputStream()) {
             os.write(jsonString.getBytes(StandardCharsets.UTF_8));
