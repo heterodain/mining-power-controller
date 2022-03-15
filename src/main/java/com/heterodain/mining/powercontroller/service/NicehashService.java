@@ -18,7 +18,7 @@ import javax.crypto.spec.SecretKeySpec;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.heterodain.mining.powercontroller.config.ServiceConfig.NicehashApi;
+import com.heterodain.mining.powercontroller.config.ServiceProperties.NicehashApi;
 
 import org.apache.commons.codec.binary.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,41 +52,14 @@ public class NicehashService {
     private ObjectMapper om;
 
     /**
-     * Nicehashサーバーの時刻取得
-     * 
-     * @return 時刻
-     * @throws IOException
-     * @throws InterruptedException
-     */
-    public String getServerTime() throws IOException, InterruptedException {
-        var uri = URI.create(GET_SERVER_TIME_URL);
-
-        log.trace("request > [GET] {}", uri);
-
-        var request = HttpRequest.newBuilder(uri).GET().header("Accept", "application/json")
-                .timeout(Duration.ofSeconds(READ_TIMEOUT)).build();
-        var response = httpClient.send(request, BodyHandlers.ofInputStream());
-        if (response.statusCode() != 200) {
-            throw new IOException("Nicehash API Response Code " + response.statusCode());
-        }
-
-        try (var is = response.body()) {
-            var json = om.readTree(is);
-            log.trace("response > {}", json);
-
-            return json.get("serverTime").asText();
-        }
-    }
-
-    /**
      * リグ情報取得
      * 
      * @param config API接続設定
-     * @param time   時刻
      * @return リグ情報
      * @throws Exception
      */
-    public RigStatus getRigStatus(NicehashApi config, String time) throws Exception {
+    public RigStatus getRigStatus(NicehashApi config) throws Exception {
+        var time = getServerTime();
         var uri = URI.create(GET_RIG_STATUS_URL);
         var headers = createAuthHeader(config, time, "GET", uri, null);
 
@@ -118,15 +91,16 @@ public class NicehashService {
     }
 
     /**
-     * リグのTDP設定
+     * リグのPower Mode設定
      * 
      * @param config API接続設定
      * @param time   時刻
-     * @param mode   パワーモード(TDP)
+     * @param mode   Power Mode
      * @return 設定の変更が成功した場合にtrue
      * @throws Exception
      */
-    public boolean setRigPowerMode(NicehashApi config, String time, POWER_MODE mode) throws Exception {
+    public boolean setRigPowerMode(NicehashApi config, POWER_MODE mode) throws Exception {
+        var time = getServerTime();
         var uri = URI.create(UPDATE_RIG_STATUS_URL);
         var payload = "{\"rigId\":\"" + config.getRigId() + "\",\"action\":\"POWER_MODE\",\"options\":[\"" + mode
                 + "\"]}";
@@ -156,6 +130,77 @@ public class NicehashService {
             }
             log.warn(json.get("message").asText());
             return false;
+        }
+    }
+
+    /**
+     * リグのPower Modeを一段上げる
+     * 
+     * @param config API接続設定
+     * @return 変更後のRig状態
+     * @throws Exception
+     */
+    public RigStatus turnUpPowerMode(NicehashApi config) throws Exception {
+        // リグのステータス取得
+        var rigStatus = getRigStatus(config);
+
+        // Power Modeを上げる
+        var powerMode = rigStatus.getRigPowerMode();
+        var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
+                : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.HIGH : POWER_MODE.HIGH;
+        if (powerMode != newPowerMode) {
+            if (setRigPowerMode(config, newPowerMode)) {
+                rigStatus.setRigPowerMode(newPowerMode);
+            }
+        }
+
+        return rigStatus;
+    }
+
+    /**
+     * リグのPower Modeを一段下げる
+     * 
+     * @param config API接続設定
+     * @return 変更後のRig状態
+     * @throws Exception
+     */
+    public RigStatus turnDownPowerMode(NicehashApi config) throws Exception {
+        // リグのステータス取得
+        var rigStatus = getRigStatus(config);
+
+        // Power Modeを下げる
+        var powerMode = rigStatus.getRigPowerMode();
+        var newPowerMode = powerMode == POWER_MODE.HIGH ? POWER_MODE.MEDIUM
+                : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.LOW : POWER_MODE.LOW;
+        if (powerMode != newPowerMode) {
+            if (setRigPowerMode(config, newPowerMode)) {
+                rigStatus.setRigPowerMode(newPowerMode);
+            }
+        }
+
+        return rigStatus;
+    }
+
+    /**
+     * Nicehashサーバーの時刻取得
+     */
+    private String getServerTime() throws IOException, InterruptedException {
+        var uri = URI.create(GET_SERVER_TIME_URL);
+
+        log.trace("request > [GET] {}", uri);
+
+        var request = HttpRequest.newBuilder(uri).GET().header("Accept", "application/json")
+                .timeout(Duration.ofSeconds(READ_TIMEOUT)).build();
+        var response = httpClient.send(request, BodyHandlers.ofInputStream());
+        if (response.statusCode() != 200) {
+            throw new IOException("Nicehash API Response Code " + response.statusCode());
+        }
+
+        try (var is = response.body()) {
+            var json = om.readTree(is);
+            log.trace("response > {}", json);
+
+            return json.get("serverTime").asText();
         }
     }
 

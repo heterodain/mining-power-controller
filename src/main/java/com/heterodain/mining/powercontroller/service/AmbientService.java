@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heterodain.mining.powercontroller.config.ServiceConfig.Ambient;
+import com.heterodain.mining.powercontroller.config.ServiceProperties.Ambient;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Component
 @ConfigurationProperties("service")
 @Data
-public class ServiceConfig {
+public class ServiceProperties {
     /** Ambientの設定(3分値) */
     private Ambient ambient;
     /** Nicehash APIの設定 */

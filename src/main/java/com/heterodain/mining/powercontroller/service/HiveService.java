@@ -7,12 +7,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.heterodain.mining.powercontroller.config.ServiceConfig.HiveApi;
+import com.heterodain.mining.powercontroller.config.ServiceProperties.HiveApi;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 public class HiveService {
     private static final String HIVE_API_BASE_URL = "https://api2.hiveos.farm/api/v2";
     private static final String GET_OC_PROFILE_URL = HIVE_API_BASE_URL + "/farms/%d/oc";
+    private static final String GET_WORKER_OC_URL = HIVE_API_BASE_URL + "/farms/%d/workers/%d";
     private static final String SET_WORKER_OC_URL = HIVE_API_BASE_URL + "/farms/%d/workers/%d";
 
     /** HTTP読み込みタイムアウト(秒) */
@@ -42,6 +44,48 @@ public class HiveService {
     /** JSONパーサー */
     @Autowired
     private ObjectMapper om;
+
+    /**
+     * ワーカーのOCプロファイルを取得
+     * 
+     * @param config        Hive API接続設定
+     * @param ocProfileName OCプロファイル名
+     * @return 現在設定されているOCプロファイル
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    public OcProfile getWorkerOcProfile(HiveApi config)
+            throws IOException, InterruptedException {
+
+        // HTTP GET
+        var uri = URI.create(String.format(GET_WORKER_OC_URL, config.getFarmId(), config.getWorkerId()));
+        log.trace("request > [GET] {}", uri);
+
+        var request = HttpRequest.newBuilder(uri).GET()
+                .header("Authorization", "Bearer " + config.getPersonalToken())
+                .timeout(Duration.ofSeconds(READ_TIMEOUT)).build();
+        var response = httpClient.send(request, BodyHandlers.ofInputStream());
+        if (response.statusCode() != 200) {
+            throw new IOException("Hive API Response Code " + response.statusCode());
+        }
+
+        JsonNode json;
+        try (var is = response.body()) {
+            json = om.readTree(is);
+        }
+        log.trace("response > {}", json);
+
+        // IDに該当するOCプロファイル取得
+        var ocId = Optional.ofNullable(json.get("oc_id")).map(node -> node.asInt()).orElse(null);
+        if (ocId == null) {
+            return null;
+        }
+        var ocProfile = getOcProfiles(config).values().stream().filter(oc -> oc.getId() == ocId)
+                .findFirst().orElse(null);
+        log.debug("OC Profile > {}", ocProfile);
+
+        return ocProfile;
+    }
 
     /**
      * ワーカーのOCプロファイルを変更
@@ -72,7 +116,7 @@ public class HiveService {
 
         // HTTP PATCH
         var uri = URI.create(String.format(SET_WORKER_OC_URL, config.getFarmId(), config.getWorkerId()));
-        log.trace("request > [POST] {}", uri);
+        log.trace("request > [PATCH] {}", uri);
         log.trace("payload > {}", payload);
 
         var request = HttpRequest.newBuilder(uri).method("PATCH", HttpRequest.BodyPublishers.ofString(payload))

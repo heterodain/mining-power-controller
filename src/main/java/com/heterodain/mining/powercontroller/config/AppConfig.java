@@ -19,9 +19,9 @@ public class AppConfig {
     private static final int DEFAULT_HTTP_CONNECTION_TIMEOUT = 15;
 
     /**
-     * JSONパーサーをDIコンテナに登録
+     * JSONパーサー
      * 
-     * @return ObjectMapper
+     * @return JSONパーサー
      */
     @Bean
     public ObjectMapper objectMapper() {

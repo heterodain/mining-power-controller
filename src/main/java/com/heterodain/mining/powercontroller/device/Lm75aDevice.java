@@ -1,30 +1,43 @@
 package com.heterodain.mining.powercontroller.device;
 
 import java.io.IOException;
+import java.util.Arrays;
 
-import com.pi4j.io.i2c.I2CBus;
-import com.pi4j.io.i2c.I2CFactory;
-import com.pi4j.io.i2c.I2CFactory.UnsupportedBusNumberException;
+import com.pi4j.io.i2c.I2CDevice;
 
-import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * LM75A温度センサーデバイス
  */
-@Component
+@Slf4j
 public class Lm75aDevice {
+    /** I2Cデバイス */
+    private I2CDevice device;
+
+    /**
+     * コンストラクタ
+     * 
+     * @param address I2Cデバイス
+     */
+    public Lm75aDevice(I2CDevice device) {
+        this.device = device;
+    }
 
     /**
      * 現在の温度取得
      * 
      * @return 温度
+     * @throws IOException
      */
-    public synchronized double readCurrent(int address) throws UnsupportedBusNumberException, IOException {
-        var i2cBus = I2CFactory.getInstance(I2CBus.BUS_1);
-        var device = i2cBus.getDevice(address);
-
+    public double readCurrent() throws IOException {
         var buff = new byte[2];
         device.read(buff, 0, 2);
+
+        if (log.isTraceEnabled()) {
+            log.trace("lm75a: {}", Arrays.toString(buff));
+        }
+
         return ((double) (((int) buff[0]) << 8 | Byte.toUnsignedInt(buff[1]))) / 256D;
     }
 }

@@ -11,9 +11,7 @@ import com.ghgande.j2mod.modbus.msg.ReadInputRegistersResponse;
 import com.ghgande.j2mod.modbus.msg.WriteCoilRequest;
 import com.ghgande.j2mod.modbus.msg.WriteCoilResponse;
 import com.ghgande.j2mod.modbus.net.SerialConnection;
-import com.heterodain.mining.powercontroller.config.DeviceConfig.PvController;
-
-import org.springframework.stereotype.Component;
+import com.pi4j.io.gpio.GpioPinDigitalOutput;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -24,21 +22,53 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * PVコントローラーデバイス
  */
-@Component
 @Slf4j
 public class PvControllerDevice {
+    /** RS485ユニットID */
+    private int unitId;
+    /** 負荷出力抵抗制御用GPIO */
+    private GpioPinDigitalOutput loadPowerRegisterSw;
+
+    /**
+     * コンストラクタ
+     * 
+     * @param unitId              RS485ユニットID
+     * @param loadPowerRegisterSw 負荷出力抵抗制御用GPIO
+     */
+    public PvControllerDevice(int unitId, GpioPinDigitalOutput loadPowerRegisterSw) {
+        this.unitId = unitId;
+        this.loadPowerRegisterSw = loadPowerRegisterSw;
+    }
+
+    /**
+     * 負荷出力抵抗ON
+     */
+    public void loadRegisterOn() {
+        log.debug("負荷出力抵抗をONします。");
+
+        loadPowerRegisterSw.high();
+    }
+
+    /**
+     * 負荷出力抵抗OFF
+     */
+    public void loadRegisterOff() {
+        log.debug("負荷出力抵抗をOFFします。");
+
+        loadPowerRegisterSw.low();
+    }
 
     /**
      * リアルタイム情報取得
      * 
-     * @param info 接続情報
      * @param conn シリアル接続
      * @return リアルタイム情報
      * @throws ModbusException
      */
-    public synchronized RealtimeData readCurrent(PvController info, SerialConnection conn) throws ModbusException {
+    public synchronized RealtimeData readCurrent(SerialConnection conn) throws ModbusException {
+        // 電力と電圧の瞬時値取得
         var req = new ReadInputRegistersRequest(0x3100, 16);
-        req.setUnitID(info.getUnitId());
+        req.setUnitID(unitId);
         var tr = new ModbusSerialTransaction(conn);
         tr.setRequest(req);
         tr.execute();
@@ -50,8 +80,9 @@ public class PvControllerDevice {
         data.loadPower = ((double) res.getRegisterValue(14) + res.getRegisterValue(15) * 0x10000) / 100;
         data.battVolt = ((double) res.getRegisterValue(4)) / 100;
 
+        // バッテリー残量取得
         req = new ReadInputRegistersRequest(0x311A, 1);
-        req.setUnitID(info.getUnitId());
+        req.setUnitID(unitId);
         tr = new ModbusSerialTransaction(conn);
         tr.setRequest(req);
         tr.execute();
@@ -59,8 +90,9 @@ public class PvControllerDevice {
         res = (ReadInputRegistersResponse) tr.getResponse();
         data.battSOC = ((double) res.getRegisterValue(0));
 
+        // 充電ステージ取得
         req = new ReadInputRegistersRequest(0x3201, 1);
-        req.setUnitID(info.getUnitId());
+        req.setUnitID(unitId);
         tr = new ModbusSerialTransaction(conn);
         tr.setRequest(req);
         tr.execute();
@@ -68,7 +100,7 @@ public class PvControllerDevice {
         res = (ReadInputRegistersResponse) tr.getResponse();
         data.stage = STAGE.values()[(res.getRegisterValue(0) >> 2) & 0x0003];
 
-        log.debug("{}", data);
+        log.trace("{}", data);
 
         return data;
     }
@@ -76,20 +108,19 @@ public class PvControllerDevice {
     /**
      * 負荷出力スイッチ状態取得
      * 
-     * @param info 接続情報
      * @param conn シリアル接続
      * @return true:スイッチON,false:スイッチOFF
      * @throws ModbusException
      */
-    public synchronized boolean readLoadSwitch(PvController info, SerialConnection conn) throws ModbusException {
+    public synchronized boolean readLoadSwitch(SerialConnection conn) throws ModbusException {
         var req = new ReadCoilsRequest(2, 1);
-        req.setUnitID(info.getUnitId());
+        req.setUnitID(unitId);
         ModbusSerialTransaction tr = new ModbusSerialTransaction(conn);
         tr.setRequest(req);
         tr.execute();
 
         var res = (ReadCoilsResponse) tr.getResponse();
-        log.debug("Coil={}", res.getCoilStatus(0));
+        log.trace("Coil={}", res.getCoilStatus(0));
 
         return res.getCoilStatus(0);
     }
@@ -97,22 +128,23 @@ public class PvControllerDevice {
     /**
      * 負荷出力スイッチON/OFF
      * 
-     * @param info 接続情報
      * @param conn シリアル接続
      * @param sw   ture:スイッチON,false:スイッチOFF
      * @throws ModbusException
      */
-    public synchronized void changeLoadSwith(PvController info, SerialConnection conn, boolean sw)
+    public synchronized void changeLoadSwith(SerialConnection conn, boolean sw)
             throws ModbusException {
+        log.debug("負荷出力を{}します。", sw ? "ON" : "OFF");
+
         var req = new WriteCoilRequest(2, sw);
-        req.setUnitID(info.getUnitId());
+        req.setUnitID(unitId);
         // req.setDataLength(1);
         ModbusSerialTransaction tr = new ModbusSerialTransaction(conn);
         tr.setRequest(req);
         tr.execute();
 
         var res = (WriteCoilResponse) tr.getResponse();
-        log.debug("Coil={}", res.getCoil());
+        log.trace("Coil={}", res.getCoil());
     }
 
     /**

@@ -74,17 +74,19 @@ control:
       ## 充電ステージに応じて制御(NO_CHARGING/BOOST/EQULIZATION/FLOAT)
       # stage: NO_CHARGING
 
+    # 高電力設定OCプロファイル名(Hive OSを利用する場合のみ)
+    high-profile-name: "HIGH"
+    # 低電力設定OCプロファイル名(Hive OSを利用する場合のみ)
+    low-profile-name: "LOW"
+    # 調整感度(W) ※値を大きくするほど細かな発電量の変化に影響されにくくなる(15-20くらいが目安)
+    hysteresis: 15
+
   ## 冷却ファン制御の設定
   fan:
     # PC停止後、冷却FAN停止までの時間(分)
     power-off-duration: 10
     # 15分毎の冷却FAN動作時間(秒)
     duration: 20
-
-  ## PowerMode/PowerLimit制御の設定
-  tdp:
-    # 調整感度(W) ※値を大きくするほど細かな発電量の変化に影響されにくくなる(15-20くらいが目安)
-    hysteresis: 15
 
   ## バッテリーヒーター制御の設定
   battery-heater:

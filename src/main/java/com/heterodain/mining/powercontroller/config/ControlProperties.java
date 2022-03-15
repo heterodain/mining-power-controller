@@ -13,13 +13,11 @@ import lombok.Data;
 @Component
 @ConfigurationProperties("control")
 @Data
-public class ControlConfig {
+public class ControlProperties {
     /** 電源制御の設定 */
     private Power power;
     /** ファン制御の設定 */
     private Fan fan;
-    /** TDP制御の設定 */
-    private Tdp tdp;
     /** バッテリーヒーターの設定 */
     private BatteryHeater batteryHeater;
 
@@ -32,6 +30,13 @@ public class ControlConfig {
         private PowerCondition powerOnCondition;
         /** 電源をOFFにする条件 */
         private PowerCondition powerOffCondition;
+
+        /** 高電力設定プロファイル名 */
+        private String highProfileName;
+        /** 低電力設定プロファイル名 */
+        private String lowProfileName;
+        /** 調整感度(ワット) */
+        private Double hysteresis;
     }
 
     /**
@@ -94,15 +99,6 @@ public class ControlConfig {
         private Integer powerOffDuration;
         /** 15分毎の冷却FAN動作時間(秒) */
         private Integer duration;
-    }
-
-    /**
-     * TDP制御の設定
-     */
-    @Data
-    public static class Tdp {
-        /** 調整感度(ワット) */
-        private Double hysteresis;
     }
 
     /**
