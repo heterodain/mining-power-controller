@@ -278,8 +278,7 @@ public class PvControllerTasks {
                     : currentRigStatus.getRigPowerMode().getStatusValue();
             if (powerModeOrLimitValue == null && currentOcProfile != null) {
                 powerModeOrLimitValue = currentOcProfile.getName()
-                        .equals(controlProperties.getPower().getHighProfileName()) ? 9D
-                                : 12D;
+                        .equals(controlProperties.getPower().getHighProfileName()) ? 9D : 12D;
             }
 
             try {

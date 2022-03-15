@@ -15,7 +15,7 @@ device:
 # サービス設定
 service:
   ## Ambientのチャネル接続設定
-  ## Ambientを利用する場合は、ambient以下のコメントアウトを外す
+  ## Ambientを利用する場合は、ambient以下のコメントアウトを外してください
 #  ambient:
 #    # チャネルID
 #    channel-id: 99999
@@ -25,7 +25,7 @@ service:
 #    write-key: "****************"
 
   ## Nicehash APIの接続設定
-  ## Nicehash APIを利用する場合は、nicehash-api以下をコメントアウトを外す
+  ## Nicehash APIを利用する場合は、nicehash-api以下をコメントアウトを外してください
 #  nicehash-api:
 #    # オーガニゼーションID
 #    org-id: "************************************"
@@ -37,7 +37,7 @@ service:
 #    rig-id: "************************"
 
   ## Hive APIの接続設定
-  ## Hive APIを利用する場合は、hive-api以下をコメントアウトを外す
+  ## Hive APIを利用する場合は、hive-api以下をコメントアウトを外してください
 #  hive-api:
 #    # ファームID
 #    farm-id: 9999999
