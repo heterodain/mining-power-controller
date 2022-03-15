@@ -22,23 +22,13 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * PVコントローラーデバイス
  */
+@AllArgsConstructor
 @Slf4j
 public class PvControllerDevice {
     /** RS485ユニットID */
     private int unitId;
     /** 負荷出力抵抗制御用GPIO */
     private GpioPinDigitalOutput loadPowerRegisterSw;
-
-    /**
-     * コンストラクタ
-     * 
-     * @param unitId              RS485ユニットID
-     * @param loadPowerRegisterSw 負荷出力抵抗制御用GPIO
-     */
-    public PvControllerDevice(int unitId, GpioPinDigitalOutput loadPowerRegisterSw) {
-        this.unitId = unitId;
-        this.loadPowerRegisterSw = loadPowerRegisterSw;
-    }
 
     /**
      * 負荷出力抵抗ON
