@@ -16,13 +16,10 @@ import com.pi4j.io.i2c.I2CFactory.UnsupportedBusNumberException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import lombok.extern.slf4j.Slf4j;
-
 /**
- * デバイス設定
+ * デバイスのコンポーネント設定
  */
 @Configuration
-@Slf4j
 public class DeviceConfig {
 
     /**

@@ -118,7 +118,7 @@ public class PvControllerTasks {
         conn.open();
 
         // 既にPCが起動中だった場合はファンを始動
-        if (miningRigDevice.isPowerOn()) {
+        if (miningRigDevice.isStarted()) {
             log.info("冷却ファンを始動します。");
             coolingFanDevice.start();
         }
@@ -177,7 +177,7 @@ public class PvControllerTasks {
         }
 
         // リグの電源状態取得
-        var pcPowerOn = miningRigDevice.isPowerOn();
+        var pcPowerOn = miningRigDevice.isStarted();
 
         // 電源制御
         try {
@@ -201,7 +201,7 @@ public class PvControllerTasks {
 
                 Thread.sleep(4000);
 
-                miningRigDevice.powerOn();
+                miningRigDevice.start();
                 pcStartTime = LocalDateTime.now();
 
                 if (fanStopFuture != null && !fanStopFuture.isDone()) {
@@ -215,7 +215,7 @@ public class PvControllerTasks {
                 // 設定条件以下のとき、リグの電源OFF
                 log.info("リグを停止します。");
 
-                miningRigDevice.powerOff();
+                miningRigDevice.stop();
 
                 Thread.sleep(20000);
 
@@ -356,7 +356,7 @@ public class PvControllerTasks {
             return;
         }
 
-        var pcPowerOn = miningRigDevice.isPowerOn();
+        var pcPowerOn = miningRigDevice.isStarted();
         var histeresis = controlProperties.getPower().getHysteresis();
 
         // Power Mode制御
@@ -393,7 +393,7 @@ public class PvControllerTasks {
     @Scheduled(cron = "0 */15 * * * *")
     public void fanControl() {
         // PCが電源OFFかつ、クーリング中でなければファンを回す
-        var pcPowerOn = miningRigDevice.isPowerOn();
+        var pcPowerOn = miningRigDevice.isStarted();
         if (!pcPowerOn && taskExecutor.getActiveCount() == 0) {
             try {
                 coolingFanDevice.start();

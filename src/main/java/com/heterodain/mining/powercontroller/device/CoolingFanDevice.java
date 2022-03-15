@@ -2,24 +2,17 @@ package com.heterodain.mining.powercontroller.device;
 
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 冷却FANデバイス
  */
+@AllArgsConstructor
 @Slf4j
 public class CoolingFanDevice {
     /** 冷却FAN制御用のGPIO */
     private GpioPinDigitalOutput fanPowerSw;
-
-    /**
-     * コンストラクタ
-     * 
-     * @param fanPowerSw 冷却FAN制御用GPIO
-     */
-    public CoolingFanDevice(GpioPinDigitalOutput fanPowerSw) {
-        this.fanPowerSw = fanPowerSw;
-    }
 
     /**
      * 稼働状態取得

@@ -3,11 +3,13 @@ package com.heterodain.mining.powercontroller.device;
 import com.pi4j.io.gpio.GpioPinDigitalInput;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * マイニングリグデバイス(PC)
  */
+@AllArgsConstructor
 @Slf4j
 public class MiningRigDevice {
     /** 電源状態監視用GPIO */
@@ -16,31 +18,20 @@ public class MiningRigDevice {
     private GpioPinDigitalOutput pcPowerSw;
 
     /**
-     * コンストラクタ
-     * 
-     * @param pcPowerStatus 電源状態監視用GPIO
-     * @param pcPowerSw     電源オンオフ制御用GPIO
-     */
-    public MiningRigDevice(GpioPinDigitalInput pcPowerStatus, GpioPinDigitalOutput pcPowerSw) {
-        this.pcPowerStatus = pcPowerStatus;
-        this.pcPowerSw = pcPowerSw;
-    }
-
-    /**
-     * 電源状態取得
+     * 稼働状態取得
      * 
      * @return true:電源ON, false:電源OFF
      */
-    public boolean isPowerOn() {
+    public boolean isStarted() {
         return pcPowerStatus.isHigh();
     }
 
     /**
-     * 電源ON
+     * 起動
      * 
      * @throws InterruptedException
      */
-    public void powerOn() throws InterruptedException {
+    public void start() throws InterruptedException {
         log.debug("リグの電源をONします。");
 
         pcPowerSw.high();
@@ -49,11 +40,11 @@ public class MiningRigDevice {
     }
 
     /**
-     * 電源OFF
+     * 停止
      * 
      * @throws InterruptedException
      */
-    public void powerOff() throws InterruptedException {
+    public void stop() throws InterruptedException {
         log.debug("リグの電源をOFFします。");
 
         pcPowerSw.high();

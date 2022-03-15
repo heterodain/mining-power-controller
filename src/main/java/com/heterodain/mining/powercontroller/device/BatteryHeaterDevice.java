@@ -2,24 +2,17 @@ package com.heterodain.mining.powercontroller.device;
 
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * バッテリーヒーターデバイス
  */
+@AllArgsConstructor
 @Slf4j
 public class BatteryHeaterDevice {
     /** バッテリーヒーター制御用のGPIO */
     private GpioPinDigitalOutput battHeaterSw;
-
-    /**
-     * コンストラクタ
-     * 
-     * @param battHeaterSw バッテリーヒーター制御用GPIO
-     */
-    public BatteryHeaterDevice(GpioPinDigitalOutput battHeaterSw) {
-        this.battHeaterSw = battHeaterSw;
-    }
 
     /**
      * 稼働状態取得

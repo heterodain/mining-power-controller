@@ -5,24 +5,17 @@ import java.util.Arrays;
 
 import com.pi4j.io.i2c.I2CDevice;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * LM75A温度センサーデバイス
  */
+@AllArgsConstructor
 @Slf4j
 public class Lm75aDevice {
     /** I2Cデバイス */
     private I2CDevice device;
-
-    /**
-     * コンストラクタ
-     * 
-     * @param address I2Cデバイス
-     */
-    public Lm75aDevice(I2CDevice device) {
-        this.device = device;
-    }
 
     /**
      * 現在の温度取得
