@@ -8,8 +8,6 @@ import com.pi4j.io.i2c.I2CFactory.UnsupportedBusNumberException;
 
 import org.springframework.stereotype.Component;
 
-import lombok.var;
-
 /**
  * LM75A温度センサーデバイス
  */
