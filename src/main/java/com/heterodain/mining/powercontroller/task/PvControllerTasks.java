@@ -92,8 +92,6 @@ public class PvControllerTasks {
     private List<RealtimeData> fifteenMinDatas = new ArrayList<>();
     /** ファン停止タスク実行結果 */
     private Future<?> fanStopFuture;
-    /** リグの状態 */
-    private RigStatus rigStatus;
     /** PC起動時刻 */
     private LocalDateTime pcStartTime;
     /** シャットダウン要求 */
@@ -134,13 +132,6 @@ public class PvControllerTasks {
             log.info("冷却ファンを始動します。");
             fanPowerSw.high();
         }
-
-        // リグのステータス取得
-        log.info("マイニングリグの情報を取得します。");
-        var nicehashConfig = serviceConfig.getNicehash();
-        var serverTime = nicehashService.getServerTime();
-        rigStatus = nicehashService.getRigStatus(nicehashConfig, serverTime);
-        log.info("リグの状態: {}", rigStatus);
 
         initialized = true;
     }
@@ -287,15 +278,19 @@ public class PvControllerTasks {
         }
 
         // Ambient送信
-        try {
-            var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
-                    rigStatus.getRigPowerMode().getStatusValue(), battTemp };
-            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},rigPowerMode={},battTemp={}", sendDatas[0],
-                    sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
+        var ambientConfig = serviceConfig.getAmbient();
+        if (ambientConfig != null) {
+            try {
+                var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
+                        rigStatus.getRigPowerMode().getStatusValue(), battTemp };
+                log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},rigPowerMode={},battTemp={}",
+                        sendDatas[0],
+                        sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
 
-            ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
-        } catch (Exception e) {
-            log.error("Ambientへのデータ送信に失敗しました。", e);
+                ambientService.send(ambientConfig, ZonedDateTime.now(), null, sendDatas);
+            } catch (Exception e) {
+                log.error("Ambientへのデータ送信に失敗しました。", e);
+            }
         }
     }
 
@@ -344,7 +339,7 @@ public class PvControllerTasks {
     }
 
     /**
-     * 15分毎にTDP制御
+     * 15分毎にPowerMode/PowerLimit制御
      */
     @Scheduled(fixedDelay = 15 * 60 * 1000, initialDelay = 15 * 60 * 1000)
     public void tdpControl() throws Exception {
@@ -368,7 +363,12 @@ public class PvControllerTasks {
         var histeresis = controlConfig.getTdp().getHysteresis();
 
         // TDP制御
+        // TODO Hive API対応
         if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
+            // リグのステータス取得
+            var rigStatus = getRigStatus();
+            log.debug("リグの状態: {}", rigStatus);
+
             // 発電電力>消費電力のとき、TDPを上げる
             var powerMode = rigStatus.getRigPowerMode();
             var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
@@ -376,12 +376,16 @@ public class PvControllerTasks {
             if (powerMode != newPowerMode) {
                 log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
                 var time = nicehashService.getServerTime();
-                if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
+                if (nicehashService.setRigPowerMode(serviceConfig.getNicehashApi(), time, newPowerMode)) {
                     rigStatus.setRigPowerMode(newPowerMode);
                 }
             }
 
         } else if (pcPowerOn && (summary.getLoadPower() - summary.getPvPower()) > histeresis) {
+            // リグのステータス取得
+            var rigStatus = getRigStatus();
+            log.debug("リグの状態: {}", rigStatus);
+
             // 発電電力<消費電力のとき、TDPを下げる
             var powerMode = rigStatus.getRigPowerMode();
             var newPowerMode = powerMode == POWER_MODE.HIGH ? POWER_MODE.MEDIUM
@@ -389,14 +393,15 @@ public class PvControllerTasks {
             if (powerMode != newPowerMode) {
                 log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
                 var time = nicehashService.getServerTime();
-                if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
+                if (nicehashService.setRigPowerMode(serviceConfig.getNicehashApi(), time, newPowerMode)) {
                     rigStatus.setRigPowerMode(newPowerMode);
                 }
             }
         }
 
         // 起動失敗時にシャットダウン
-        if (pcPowerOn && summary.getLoadPower() < 100D) {
+        // TODO しきい値を設定化
+        if (pcPowerOn && summary.getLoadPower() < 50D) {
             shutdownRequest = true;
         }
     }
@@ -463,5 +468,11 @@ public class PvControllerTasks {
                 log.warn("{}の初期化に失敗しました。リトライします。", pin);
             }
         }
+    }
+
+    private void getRigStatus() {
+        var nicehashConfig = serviceConfig.getNicehashApi();
+        var serverTime = nicehashService.getServerTime();
+        return nicehashService.getRigStatus(nicehashConfig, serverTime);
     }
 }
