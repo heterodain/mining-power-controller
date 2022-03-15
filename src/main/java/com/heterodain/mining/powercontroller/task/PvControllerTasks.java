@@ -132,7 +132,8 @@ public class PvControllerTasks {
         // Hive OSのOCプロファイル取得
         var hiveConfig = serviceProperties.getHiveApi();
         if (hiveConfig != null) {
-            currentOcProfile = hiveService.getWorkerOcProfile(hiveConfig);
+            var ocProfileId = hiveService.getWorkerOcProfileId(hiveConfig);
+            currentOcProfile = hiveService.getOcProfiles(hiveConfig).get(ocProfileId);
         }
 
         initialized = true;
@@ -377,7 +378,16 @@ public class PvControllerTasks {
         // Power Limit制御
         var hiveConfig = serviceProperties.getHiveApi();
         if (hiveConfig != null) {
-            // TODO OCプロファイルを切り替える
+            var currentOcProfileId = currentOcProfile == null ? null : currentOcProfile.getId();
+            OcProfile newOcProfile = null;
+            if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
+                newOcProfile = hiveService.turnUpPowerLimit(hiveConfig, controlProperties.getPower());
+            } else if (pcPowerOn && (summary.getLoadPower() - summary.getPvPower()) > histeresis) {
+                newOcProfile = hiveService.turnDownPowerLimit(hiveConfig, controlProperties.getPower());
+            }
+            if (newOcProfile != null && !newOcProfile.getId().equals(currentOcProfileId)) {
+                log.info("ワーカーのOCプロファイルを{}に変更しました。", newOcProfile.getName());
+            }
         }
 
         // 起動失敗時にシャットダウン

@@ -13,6 +13,7 @@ import java.util.stream.StreamSupport;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.heterodain.mining.powercontroller.config.ControlProperties;
 import com.heterodain.mining.powercontroller.config.ServiceProperties.HiveApi;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,15 +47,14 @@ public class HiveService {
     private ObjectMapper om;
 
     /**
-     * ワーカーのOCプロファイルを取得
+     * ワーカーのOCプロファイルIDを取得
      * 
-     * @param config        Hive API接続設定
-     * @param ocProfileName OCプロファイル名
-     * @return 現在設定されているOCプロファイル
+     * @param config Hive API接続設定
+     * @return 現在設定されているOCプロファイルID
      * @throws IOException
      * @throws InterruptedException
      */
-    public OcProfile getWorkerOcProfile(HiveApi config)
+    public Integer getWorkerOcProfileId(HiveApi config)
             throws IOException, InterruptedException {
 
         // HTTP GET
@@ -75,36 +75,27 @@ public class HiveService {
         }
         log.trace("response > {}", json);
 
-        // IDに該当するOCプロファイル取得
-        var ocId = Optional.ofNullable(json.get("oc_id")).map(node -> node.asInt()).orElse(null);
-        if (ocId == null) {
-            return null;
-        }
-        var ocProfile = getOcProfiles(config).values().stream().filter(oc -> oc.getId() == ocId)
-                .findFirst().orElse(null);
-        log.debug("OC Profile > {}", ocProfile);
-
-        return ocProfile;
+        return Optional.ofNullable(json.get("oc_id")).map(node -> node.asInt()).orElse(null);
     }
 
     /**
      * ワーカーのOCプロファイルを変更
      * 
-     * @param config        Hive API接続設定
-     * @param ocProfileName OCプロファイル名
+     * @param config      Hive API接続設定
+     * @param ocProfileId OCプロファイルID
      * @return 変更後のOCプロファイル
      * @throws IOException
      * @throws InterruptedException
      */
-    public OcProfile changeWorkerOcProfile(HiveApi config, String ocProfileName)
+    public OcProfile changeWorkerOcProfile(HiveApi config, Integer ocProfileId)
             throws IOException, InterruptedException {
 
         var ocProfiles = getOcProfiles(config);
         log.debug("OC Profiles > {}", ocProfiles);
 
-        var ocProfile = ocProfiles.get(ocProfileName);
+        var ocProfile = ocProfiles.get(ocProfileId);
         if (ocProfile == null) {
-            String msg = String.format("%sに該当するOCプロファイルが定義されていません", ocProfileName);
+            String msg = String.format("該当するOCプロファイルが定義されていません。id=%d", ocProfileId);
             throw new IllegalArgumentException(msg);
         }
 
@@ -141,7 +132,7 @@ public class HiveService {
      * @throws IOException
      * @throws InterruptedException
      */
-    private Map<String, OcProfile> getOcProfiles(HiveApi config) throws IOException, InterruptedException {
+    public Map<Integer, OcProfile> getOcProfiles(HiveApi config) throws IOException, InterruptedException {
 
         // HTTP GET
         var uri = URI.create(String.format(GET_OC_PROFILE_URL, config.getFarmId()));
@@ -164,7 +155,55 @@ public class HiveService {
         // レスポンスのJSONから、OCプロファイル情報を抽出
         return StreamSupport.stream(json.get("data").spliterator(), false)
                 .map(oc -> new OcProfile(oc.get("id").asInt(), oc.get("name").asText(), oc.get("options")))
-                .collect(Collectors.toMap(OcProfile::getName, ocp -> ocp));
+                .collect(Collectors.toMap(OcProfile::getId, ocp -> ocp));
+    }
+
+    /**
+     * リグのPower Limitを一段上げる
+     * 
+     * @param config API接続設定
+     * @return 変更後のOCプロファイル
+     * @throws Exception
+     */
+    public OcProfile turnUpPowerLimit(HiveApi config, ControlProperties.Power powerConfig) throws Exception {
+        // OCプロファイル設定取得
+        var ocProfiles = getOcProfiles(config);
+        var currentOcProfileId = getWorkerOcProfileId(config);
+        var highOcProfileName = powerConfig.getHighProfileName();
+        var highOcProfile = ocProfiles.values().stream()
+                .filter(oc -> highOcProfileName.equals(oc.getName())).findFirst()
+                .orElseThrow(() -> new Exception("該当するOCプロファイルが見つかりませんでした。: " + highOcProfileName));
+
+        // Power Limitを上げる
+        if (!highOcProfile.getId().equals(currentOcProfileId)) {
+            changeWorkerOcProfile(config, highOcProfile.getId());
+        }
+
+        return highOcProfile;
+    }
+
+    /**
+     * リグのPower Limitを一段下げる
+     * 
+     * @param config API接続設定
+     * @return 変更後のOCプロファイル
+     * @throws Exception
+     */
+    public OcProfile turnDownPowerLimit(HiveApi config, ControlProperties.Power powerConfig) throws Exception {
+        // OCプロファイル設定取得
+        var ocProfiles = getOcProfiles(config);
+        var currentOcProfileId = getWorkerOcProfileId(config);
+        var lowOcProfileName = powerConfig.getLowProfileName();
+        var lowOcProfile = ocProfiles.values().stream()
+                .filter(oc -> lowOcProfileName.equals(oc.getName())).findFirst()
+                .orElseThrow(() -> new Exception("該当するOCプロファイルが見つかりませんでした。: " + lowOcProfileName));
+
+        // Power Limitを下げる
+        if (!lowOcProfile.getId().equals(currentOcProfileId)) {
+            changeWorkerOcProfile(config, lowOcProfile.getId());
+        }
+
+        return lowOcProfile;
     }
 
     /**

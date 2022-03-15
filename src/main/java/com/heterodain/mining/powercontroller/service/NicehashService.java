@@ -143,9 +143,9 @@ public class NicehashService {
     public RigStatus turnUpPowerMode(NicehashApi config) throws Exception {
         // リグのステータス取得
         var rigStatus = getRigStatus(config);
+        var powerMode = rigStatus.getRigPowerMode();
 
         // Power Modeを上げる
-        var powerMode = rigStatus.getRigPowerMode();
         var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
                 : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.HIGH : POWER_MODE.HIGH;
         if (powerMode != newPowerMode) {
@@ -167,9 +167,9 @@ public class NicehashService {
     public RigStatus turnDownPowerMode(NicehashApi config) throws Exception {
         // リグのステータス取得
         var rigStatus = getRigStatus(config);
+        var powerMode = rigStatus.getRigPowerMode();
 
         // Power Modeを下げる
-        var powerMode = rigStatus.getRigPowerMode();
         var newPowerMode = powerMode == POWER_MODE.HIGH ? POWER_MODE.MEDIUM
                 : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.LOW : POWER_MODE.LOW;
         if (powerMode != newPowerMode) {
