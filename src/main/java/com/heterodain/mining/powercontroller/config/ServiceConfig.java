@@ -16,8 +16,10 @@ import lombok.NoArgsConstructor;
 public class ServiceConfig {
     /** Ambientの設定(3分値) */
     private Ambient ambient;
-    /** Nicehashの設定 */
-    private Nicehash nicehash;
+    /** Nicehash APIの設定 */
+    private NicehashApi nicehashApi;
+    /** Hive APIの設定 */
+    private HiveApi hiveApi;
 
     /**
      * Ambientの設定情報
@@ -35,12 +37,12 @@ public class ServiceConfig {
     }
 
     /**
-     * Nicehashの設定情報
+     * Nicehash APIの設定情報
      */
     @NoArgsConstructor
     @AllArgsConstructor
     @Data
-    public static class Nicehash {
+    public static class NicehashApi {
         /** オーガニゼーションID */
         private String orgId;
         /** APIキー */
@@ -49,5 +51,18 @@ public class ServiceConfig {
         private String apiSecret;
         /** リグID */
         private String rigId;
+    }
+
+    /**
+     * Hive APIの設定情報
+     */
+    @Data
+    public static class HiveApi {
+        /** ファームID */
+        private Integer farmId;
+        /** ワーカーID */
+        private Integer workerId;
+        /** パーソナルAPIトークン */
+        private String personalToken;
     }
 }

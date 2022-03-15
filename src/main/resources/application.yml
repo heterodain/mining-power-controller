@@ -1,64 +1,97 @@
 # デバイス設定
 device:
+  # チャージコントローラの接続設定
   pv-controller:
+    ## シリアル通信ポート名
     com-port: "ttyUSB0"
+    ## RS485のユニットID
     unit-id: 1
+
+  # LM75A温度センサーの接続設定
   lm75a:
+    ## I2Cアドレス
     address: 0x48
 
 # サービス設定
 service:
-  # Ambientのチャネル接続設定
+  ## Ambientのチャネル接続設定
+  ## Ambientを利用しない場合は、ambient以下をコメントアウト
   ambient:
+    # チャネルID
     channel-id: 99999
+    # リードキー
     read-key: "****************"
+    # ライトキー
     write-key: "****************"
 
-  # Nicehash APIの接続設定
-  ## org-id: オーガニゼーションID
-  ## api-key: APIキー
-  ## api-secret: API秘密キー
-  ## rig-id: リグID
-  nicehash:
+  ## Nicehash APIの接続設定
+  ## Nicehash APIを利用しない場合は、nicehash-api以下をコメントアウト
+  nicehash-api:
+    # オーガニゼーションID
     org-id: "************************************"
+    # APIキー
     api-key: "************************************"
+    # API秘密キー
     api-secret: "************************************************************************"
+    # リグID
     rig-id: "************************"
 
-# 制御パラメータ
+  ## Hive APIの接続設定
+  ## Hive APIを利用しない場合は、hive-api以下をコメントアウト
+  hive-api:
+    # 有効/無効
+    enabled: true
+    # ファームID
+    farm-id: 9999999
+    # ワーカーID
+    worker-id: 99999999
+    # パーソナルトークン
+    personal-token: "*****************************************************************************************"
+
+# 制御設定
 control:
+  ## 電力制御設定
   power:
     # 電源ONする条件(OR)
-    ## voltage: 電圧(V)に応じで制御(バッテリーの種類に応じて要調整 - 車用バッテリーは29.1, リン酸鉄リチウムイオンバッテリーは27.0くらいが目安)
-    ## power: 発電電力(W)に応じて制御
-    ## soc: バッテリー残量(%)に応じて制御(91目安) ※SOCの値はあまりあてにならない
-    ## stage: 充電ステージに応じて制御(NO_CHARGING/BOOST/EQULIZATION/FLOAT)
     power-on-condition:
+      ## 電圧(V)に応じで制御(バッテリーの種類に応じて要調整 - 車用バッテリーは29.1, リン酸鉄リチウムイオンバッテリーは27.0くらいが目安)
       voltage: 27.0
+      ## 発電電力(W)に応じて制御
       # power: 140.0
+      ## バッテリー残量(%)に応じて制御(91目安) ※SOCの値はあまりあてにならない
       # soc: 91.0
+      ## 充電ステージに応じて制御(NO_CHARGING/BOOST/EQULIZATION/FLOAT)
       stage: EQULIZATION
 
     # 電源OFFする条件(OR)
-    ## voltage: 電圧(V)に応じで制御(バッテリーの種類に応じて要調整 - 車用バッテリーは24.0, リン酸鉄リチウムイオンバッテリーは25.9～25.5くらいが目安)
-    ## power: 発電電力(W)に応じて制御
-    ## soc: バッテリー残量(%)に応じて制御(30目安) ※SOCの値はあまりあてにならない
-    ## stage: 充電ステージに応じて制御(NO_CHARGING/BOOST/EQULIZATION/FLOAT)
     power-off-condition:
+      ## 電圧(V)に応じで制御(バッテリーの種類に応じて要調整 - 車用バッテリーは24.0, リン酸鉄リチウムイオンバッテリーは25.9～25.5くらいが目安)
       voltage: 25.95
+      ## 発電電力(W)に応じて制御
       # power: 10.0
+      ## バッテリー残量(%)に応じて制御(30目安) ※SOCの値はあまりあてにならない
       # soc: 30.0
+      ## 充電ステージに応じて制御(NO_CHARGING/BOOST/EQULIZATION/FLOAT)
       # stage: NO_CHARGING
+
+  ## 冷却ファン制御の設定
   fan:
     # PC停止後、冷却FAN停止までの時間(分)
     power-off-duration: 10
     # 15分毎の冷却FAN動作時間(秒)
     duration: 20
+
+  ## PowerMode/PowerLimit制御の設定
   tdp:
-    # TDPの調整感度(W) ※値を大きくするほど細かな発電量の変化に影響されにくくなる(20くらいが目安)
-    hysteresis: 20
+    # 調整感度(W) ※値を大きくするほど細かな発電量の変化に影響されにくくなる(15-20くらいが目安)
+    hysteresis: 15
+
+  ## バッテリーヒーター制御の設定
   battery-heater:
-    # バッテリー温度範囲(ヒーター始動℃,停止℃)
+    # 温度範囲(ヒーター始動℃,停止℃)
     temperature-range: [5, 8]
     # 制御時間帯(開始時刻,終了時刻)
     hour-range: ["05:00:00", "18:00:00"]
+
+# ログレベル
+#詳細なログを出力する場合にコメントを外す# logging.level.com.heterodain.mining.powercontroller: TRACE
