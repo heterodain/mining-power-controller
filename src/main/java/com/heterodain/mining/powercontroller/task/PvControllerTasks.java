@@ -313,7 +313,6 @@ public class PvControllerTasks {
             var now = LocalTime.now();
             if (now.compareTo(range[0]) < 0 || now.compareTo(range[1]) > 0) {
                 if (batteryHeaterDevice.isStarted()) {
-                    log.info("バッテリーヒーターを停止します。");
                     batteryHeaterDevice.stop();
                 }
                 return;
@@ -364,30 +363,28 @@ public class PvControllerTasks {
         // Power Mode制御
         var nicehashConfig = serviceProperties.getNicehashApi();
         if (nicehashConfig != null) {
-            var currentPowerMode = currentRigStatus == null ? null : currentRigStatus.getRigPowerMode();
-            RigStatus newRigStatus = null;
+            var oldPowerMode = currentRigStatus.getRigPowerMode();
             if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
-                newRigStatus = nicehashService.turnUpPowerMode(nicehashConfig);
+                currentRigStatus = nicehashService.turnUpPowerMode(nicehashConfig);
             } else if (pcPowerOn && (summary.getLoadPower() - summary.getPvPower()) > histeresis) {
-                newRigStatus = nicehashService.turnDownPowerMode(nicehashConfig);
+                currentRigStatus = nicehashService.turnDownPowerMode(nicehashConfig);
             }
-            if (newRigStatus != null && newRigStatus.getRigPowerMode() != currentPowerMode) {
-                log.info("リグのPowerModeを{}に変更しました。", newRigStatus.getRigPowerMode());
+            if (oldPowerMode == currentRigStatus.getRigPowerMode()) {
+                log.info("リグのPowerModeを{}に変更しました。", currentRigStatus.getRigPowerMode());
             }
         }
 
         // Power Limit制御
         var hiveConfig = serviceProperties.getHiveApi();
         if (hiveConfig != null) {
-            var currentOcProfileId = currentOcProfile == null ? null : currentOcProfile.getId();
-            OcProfile newOcProfile = null;
+            var oldOcProfileId = currentOcProfile.getId();
             if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
-                newOcProfile = hiveService.turnUpPowerLimit(hiveConfig, controlProperties.getPower());
+                currentOcProfile = hiveService.turnUpPowerLimit(hiveConfig, controlProperties.getPower());
             } else if (pcPowerOn && (summary.getLoadPower() - summary.getPvPower()) > histeresis) {
-                newOcProfile = hiveService.turnDownPowerLimit(hiveConfig, controlProperties.getPower());
+                currentOcProfile = hiveService.turnDownPowerLimit(hiveConfig, controlProperties.getPower());
             }
-            if (newOcProfile != null && !newOcProfile.getId().equals(currentOcProfileId)) {
-                log.info("ワーカーのOCプロファイルを{}に変更しました。", newOcProfile.getName());
+            if (!oldOcProfileId.equals(currentOcProfile.getId())) {
+                log.info("ワーカーのOCプロファイルを{}に変更しました。", currentOcProfile.getName());
             }
         }
 
