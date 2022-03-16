@@ -1,7 +1,8 @@
 package com.heterodain.mining.powercontroller.device;
 
 import java.io.IOException;
-import java.util.Arrays;
+
+import javax.xml.bind.DatatypeConverter;
 
 import com.pi4j.io.i2c.I2CDevice;
 
@@ -28,7 +29,7 @@ public class Lm75aDevice {
         device.read(buff, 0, 2);
 
         if (log.isTraceEnabled()) {
-            log.trace("lm75a: {}", Arrays.toString(buff));
+            log.trace("lm75a: {}", DatatypeConverter.printHexBinary(buff));
         }
 
         return ((double) (((int) buff[0]) << 8 | Byte.toUnsignedInt(buff[1]))) / 256D;

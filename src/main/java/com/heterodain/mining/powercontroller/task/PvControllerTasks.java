@@ -119,7 +119,6 @@ public class PvControllerTasks {
 
         // 既にPCが起動中だった場合はファンを始動
         if (miningRigDevice.isStarted()) {
-            log.info("冷却ファンを始動します。");
             coolingFanDevice.start();
         }
 

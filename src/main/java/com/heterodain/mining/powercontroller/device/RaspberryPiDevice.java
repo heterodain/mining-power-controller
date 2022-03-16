@@ -59,7 +59,7 @@ public class RaspberryPiDevice {
     }
 
     public I2CDevice initI2cDevice(int address) throws UnsupportedBusNumberException, IOException {
-        log.info("I2Cデバイスに接続します。address={}", address);
+        log.info("I2Cデバイスに接続します。address={}", String.format("0x%02x", address));
 
         var bus = I2CFactory.getInstance(I2CBus.BUS_1);
         return bus.getDevice(address);
