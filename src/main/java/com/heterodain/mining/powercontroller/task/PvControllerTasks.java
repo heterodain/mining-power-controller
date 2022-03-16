@@ -390,7 +390,7 @@ public class PvControllerTasks {
 
         // 起動失敗時にシャットダウン
         // TODO しきい値を設定化
-        if (pcPowerOn && summary.getLoadPower() < 100D) {
+        if (pcPowerOn && summary.getLoadPower() < 50D) {
             shutdownRequest = true;
         }
     }
