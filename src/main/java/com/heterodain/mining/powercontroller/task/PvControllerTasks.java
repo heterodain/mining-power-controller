@@ -1,6 +1,7 @@
 package com.heterodain.mining.powercontroller.task;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
@@ -106,6 +107,8 @@ public class PvControllerTasks {
         var pvcConfig = deviceProperties.getPvController();
 
         // RS485シリアル接続
+        log.info("PVコントローラーに接続します。");
+
         var serialParam = new SerialParameters();
         serialParam.setPortName(pvcConfig.getComPort());
         serialParam.setBaudRate(115200);
@@ -120,6 +123,7 @@ public class PvControllerTasks {
         // 既にPCが起動中だった場合はファンを始動
         if (miningRigDevice.isStarted()) {
             coolingFanDevice.start();
+            pcStartTime = LocalDateTime.now();
         }
 
         // Nicehash OSのリグ状態取得
@@ -187,8 +191,7 @@ public class PvControllerTasks {
 
             if (!pcPowerOn && powerOnCondition.graterEqual(summary.getPvPower(), summary.getBattSOC(),
                     summary.getBattVolt(), summary.getStage())) {
-                // 設定条件以上のとき、リグの電源ON
-                log.info("リグを起動します。");
+                // 設定条件以上のとき、マイニングリグを起動
 
                 // DCDCコンバーターにいきなり接続すると、
                 // 突入電流でチャージコントローラーの保護回路が働いてしまうので、
@@ -212,8 +215,7 @@ public class PvControllerTasks {
 
             } else if (shutdownRequest || (pcPowerOn && powerOffCondition.lessEqual(summary.getPvPower(),
                     summary.getBattSOC(), summary.getBattVolt(), summary.getStage()))) {
-                // 設定条件以下のとき、リグの電源OFF
-                log.info("リグを停止します。");
+                // 設定条件以下のとき、マイニングリグを停止
 
                 miningRigDevice.stop();
 
@@ -311,6 +313,7 @@ public class PvControllerTasks {
             var now = LocalTime.now();
             if (now.compareTo(range[0]) < 0 || now.compareTo(range[1]) > 0) {
                 if (batteryHeaterDevice.isStarted()) {
+                    log.info("バッテリーヒーターを停止します。");
                     batteryHeaterDevice.stop();
                 }
                 return;
@@ -419,7 +422,7 @@ public class PvControllerTasks {
     @PreDestroy
     public void destroy() {
         if (conn != null) {
-            log.debug("PVコントローラーを切断します。");
+            log.info("PVコントローラーを切断します。");
             conn.close();
         }
 

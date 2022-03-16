@@ -32,7 +32,7 @@ public class MiningRigDevice {
      * @throws InterruptedException
      */
     public void start() throws InterruptedException {
-        log.debug("リグの電源をONします。");
+        log.info("マイニングリグを起動します。");
 
         pcPowerSw.high();
         Thread.sleep(300);
@@ -45,7 +45,7 @@ public class MiningRigDevice {
      * @throws InterruptedException
      */
     public void stop() throws InterruptedException {
-        log.debug("リグの電源をOFFします。");
+        log.info("マイニングリグを停止します。");
 
         pcPowerSw.high();
         Thread.sleep(300);

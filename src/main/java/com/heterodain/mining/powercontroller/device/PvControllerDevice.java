@@ -34,7 +34,7 @@ public class PvControllerDevice {
      * 負荷出力抵抗ON
      */
     public void loadRegisterOn() {
-        log.debug("負荷出力抵抗をONします。");
+        log.info("負荷出力抵抗をONします。");
 
         loadPowerRegisterSw.high();
     }
@@ -43,7 +43,7 @@ public class PvControllerDevice {
      * 負荷出力抵抗OFF
      */
     public void loadRegisterOff() {
-        log.debug("負荷出力抵抗をOFFします。");
+        log.info("負荷出力抵抗をOFFします。");
 
         loadPowerRegisterSw.low();
     }
@@ -124,7 +124,7 @@ public class PvControllerDevice {
      */
     public synchronized void changeLoadSwith(SerialConnection conn, boolean sw)
             throws ModbusException {
-        log.debug("負荷出力を{}します。", sw ? "ON" : "OFF");
+        log.info("負荷出力を{}します。", sw ? "ON" : "OFF");
 
         var req = new WriteCoilRequest(2, sw);
         req.setUnitID(unitId);

@@ -1,5 +1,5 @@
 <configuration>
-    <property name="format" value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+    <property name="format" value="%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" />
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>

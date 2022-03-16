@@ -27,7 +27,7 @@ public class CoolingFanDevice {
      * 始動
      */
     public void start() {
-        log.debug("冷却ファンを始動します。");
+        log.info("冷却ファンを始動します。");
 
         fanPowerSw.high();
     }
@@ -36,7 +36,7 @@ public class CoolingFanDevice {
      * 停止
      */
     public void stop() {
-        log.debug("冷却ファンを始動します。");
+        log.info("冷却ファンを始動します。");
 
         fanPowerSw.low();
     }

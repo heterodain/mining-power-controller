@@ -27,7 +27,7 @@ public class BatteryHeaterDevice {
      * 始動
      */
     public void start() {
-        log.debug("バッテリーヒーターを始動します。");
+        log.info("バッテリーヒーターを始動します。");
 
         battHeaterSw.high();
     }
@@ -36,7 +36,7 @@ public class BatteryHeaterDevice {
      * 停止
      */
     public void stop() {
-        log.debug("バッテリーヒーターを停止します。");
+        log.info("バッテリーヒーターを停止します。");
 
         battHeaterSw.low();
     }
