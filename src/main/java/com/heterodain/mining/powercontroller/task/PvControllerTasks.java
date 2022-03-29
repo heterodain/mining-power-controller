@@ -1,6 +1,7 @@
 package com.heterodain.mining.powercontroller.task;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
@@ -15,24 +16,21 @@ import javax.annotation.PreDestroy;
 
 import com.ghgande.j2mod.modbus.net.SerialConnection;
 import com.ghgande.j2mod.modbus.util.SerialParameters;
-import com.heterodain.mining.powercontroller.config.DeviceConfig;
-import com.heterodain.mining.powercontroller.config.ServiceConfig;
-import com.heterodain.mining.powercontroller.config.ControlConfig;
+import com.heterodain.mining.powercontroller.config.DeviceProperties;
+import com.heterodain.mining.powercontroller.config.ServiceProperties;
+import com.heterodain.mining.powercontroller.config.ControlProperties;
+import com.heterodain.mining.powercontroller.device.BatteryHeaterDevice;
+import com.heterodain.mining.powercontroller.device.CoolingFanDevice;
 import com.heterodain.mining.powercontroller.device.Lm75aDevice;
+import com.heterodain.mining.powercontroller.device.MiningRigDevice;
 import com.heterodain.mining.powercontroller.device.PvControllerDevice;
+import com.heterodain.mining.powercontroller.device.RaspberryPiDevice;
 import com.heterodain.mining.powercontroller.device.PvControllerDevice.RealtimeData;
 import com.heterodain.mining.powercontroller.service.AmbientService;
+import com.heterodain.mining.powercontroller.service.HiveService;
 import com.heterodain.mining.powercontroller.service.NicehashService;
-import com.heterodain.mining.powercontroller.service.NicehashService.POWER_MODE;
+import com.heterodain.mining.powercontroller.service.HiveService.OcProfile;
 import com.heterodain.mining.powercontroller.service.NicehashService.RigStatus;
-import com.pi4j.io.gpio.GpioController;
-import com.pi4j.io.gpio.GpioFactory;
-import com.pi4j.io.gpio.GpioPinDigitalInput;
-import com.pi4j.io.gpio.GpioPinDigitalOutput;
-import com.pi4j.io.gpio.Pin;
-import com.pi4j.io.gpio.PinPullResistance;
-import com.pi4j.io.gpio.PinState;
-import com.pi4j.io.gpio.RaspiPin;
 import com.pi4j.io.i2c.I2CFactory.UnsupportedBusNumberException;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +38,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
-import lombok.var;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -50,75 +47,70 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PvControllerTasks {
     @Autowired
-    private DeviceConfig deviceConfig;
+    private DeviceProperties deviceProperties;
     @Autowired
-    private ServiceConfig serviceConfig;
+    private ServiceProperties serviceProperties;
     @Autowired
-    private ControlConfig controlConfig;
+    private ControlProperties controlProperties;
 
+    @Autowired
+    private RaspberryPiDevice raspberryPiDevice;
     @Autowired
     private PvControllerDevice pvControllerDevice;
     @Autowired
     private Lm75aDevice lm75aDevice;
     @Autowired
+    private MiningRigDevice miningRigDevice;
+    @Autowired
+    private CoolingFanDevice coolingFanDevice;
+    @Autowired
+    private BatteryHeaterDevice batteryHeaterDevice;
+
+    @Autowired
     private AmbientService ambientService;
     @Autowired
     private NicehashService nicehashService;
+    @Autowired
+    private HiveService hiveService;
 
     @Autowired
     private ThreadPoolTaskExecutor taskExecutor;
 
     /** RS485シリアル接続 */
     private SerialConnection conn;
-    /** GPIOコントローラー */
-    private GpioController gpio;
-    /** 負荷出力抵抗オンオフ制御GPIO */
-    private GpioPinDigitalOutput loadPowerRegisterSw;
-    /** PC電源オンオフ制御GPIO */
-    private GpioPinDigitalOutput pcPowerSw;
-    /** 冷却ファンオンオフ制御GPIO */
-    private GpioPinDigitalOutput fanPowerSw;
-    /** バッテリーヒーターオンオフ制御GPIO */
-    private GpioPinDigitalOutput battHeaterSw;
-    /** PC電源状態監視GPIO */
-    private GpioPinDigitalInput pcPowerStatus;
     /** 初期化済みフラグ */
     private boolean initialized = false;
+
     /** 計測データ(3秒値) */
     private List<RealtimeData> threeSecDatas = new ArrayList<>();
     /** 計測データ(1分値) */
     private List<RealtimeData> oneMinDatas = new ArrayList<>();
     /** 計測データ(15分値) */
     private List<RealtimeData> fifteenMinDatas = new ArrayList<>();
+
     /** ファン停止タスク実行結果 */
     private Future<?> fanStopFuture;
-    /** リグの状態 */
-    private RigStatus rigStatus;
     /** PC起動時刻 */
     private LocalDateTime pcStartTime;
     /** シャットダウン要求 */
     private boolean shutdownRequest = false;
+    /** リグの状態(Nicehash OS) */
+    private RigStatus currentRigStatus;
+    /** OCプロファイル(Hive OS) */
+    private OcProfile currentOcProfile;
 
     /**
      * 初期化
      */
     @PostConstruct
     public void init() throws Exception {
-        // GPIO初期化
-        log.info("GPIOを初期化します。");
-        gpio = GpioFactory.getInstance();
-        loadPowerRegisterSw = initOutputGPIO(RaspiPin.GPIO_27, "LOAD_POWER_REG_SW", PinState.LOW);
-        pcPowerSw = initOutputGPIO(RaspiPin.GPIO_25, "PC_POWER_SW", PinState.LOW);
-        fanPowerSw = initOutputGPIO(RaspiPin.GPIO_02, "FAN_POWER_SW", PinState.LOW);
-        battHeaterSw = initOutputGPIO(RaspiPin.GPIO_24, "BATT_HEATER_SW", PinState.LOW);
-        pcPowerStatus = initInputGPIO(RaspiPin.GPIO_00, "PC_POWER_STATUS", PinPullResistance.PULL_DOWN);
+        var pvcConfig = deviceProperties.getPvController();
 
-        // PVコントローラー初期化
-        var pvcSetting = deviceConfig.getPvController();
-        log.info("PVコントローラーに接続します。unitId={}", pvcSetting.getUnitId());
+        // RS485シリアル接続
+        log.info("PVコントローラーに接続します。");
 
         var serialParam = new SerialParameters();
-        serialParam.setPortName(pvcSetting.getComPort());
+        serialParam.setPortName(pvcConfig.getComPort());
         serialParam.setBaudRate(115200);
         serialParam.setDatabits(8);
         serialParam.setParity("None");
@@ -129,18 +121,23 @@ public class PvControllerTasks {
         conn.open();
 
         // 既にPCが起動中だった場合はファンを始動
-        boolean pcPowerOn = pcPowerStatus.isHigh();
-        if (pcPowerOn) {
-            log.info("冷却ファンを始動します。");
-            fanPowerSw.high();
+        if (miningRigDevice.isStarted()) {
+            coolingFanDevice.start();
+            pcStartTime = LocalDateTime.now();
         }
 
-        // リグのステータス取得
-        log.info("マイニングリグの情報を取得します。");
-        var nicehashConfig = serviceConfig.getNicehash();
-        var serverTime = nicehashService.getServerTime();
-        rigStatus = nicehashService.getRigStatus(nicehashConfig, serverTime);
-        log.info("リグの状態: {}", rigStatus);
+        // Nicehash OSのリグ状態取得
+        var nicehashConfig = serviceProperties.getNicehashApi();
+        if (nicehashConfig != null) {
+            currentRigStatus = nicehashService.getRigStatus(nicehashConfig);
+        }
+
+        // Hive OSのOCプロファイル取得
+        var hiveConfig = serviceProperties.getHiveApi();
+        if (hiveConfig != null) {
+            var ocProfileId = hiveService.getWorkerOcProfileId(hiveConfig);
+            currentOcProfile = hiveService.getOcProfiles(hiveConfig).get(ocProfileId);
+        }
 
         initialized = true;
     }
@@ -155,7 +152,7 @@ public class PvControllerTasks {
         }
 
         try {
-            var data = pvControllerDevice.readCurrent(deviceConfig.getPvController(), conn);
+            var data = pvControllerDevice.readCurrent(conn);
             synchronized (threeSecDatas) {
                 threeSecDatas.add(data);
             }
@@ -183,69 +180,58 @@ public class PvControllerTasks {
             oneMinDatas.add(summary);
         }
 
-        // PCの電源状態取得
-        var pcPowerOn = pcPowerStatus.isHigh();
+        // リグの電源状態取得
+        var pcPowerOn = miningRigDevice.isStarted();
 
         // 電源制御
         try {
-            var pvControllerConfig = deviceConfig.getPvController();
-            var powerConfig = controlConfig.getPower();
+            var powerConfig = controlProperties.getPower();
             var powerOnCondition = powerConfig.getPowerOnCondition();
             var powerOffCondition = powerConfig.getPowerOffCondition();
 
             if (!pcPowerOn && powerOnCondition.graterEqual(summary.getPvPower(), summary.getBattSOC(),
                     summary.getBattVolt(), summary.getStage())) {
-                // 設定条件以上のとき、PC電源ON
-                log.info("負荷出力をONします。");
+                // 設定条件以上のとき、マイニングリグを起動
 
                 // DCDCコンバーターにいきなり接続すると、
                 // 突入電流でチャージコントローラーの保護回路が働いてしまうので、
                 // 5Ω抵抗経由で接続したあと、ダイレクトに接続する
-                loadPowerRegisterSw.high();
+                pvControllerDevice.loadRegisterOn();
                 Thread.sleep(300);
-                pvControllerDevice.changeLoadSwith(pvControllerConfig, conn, true);
+                pvControllerDevice.changeLoadSwith(conn, true);
                 Thread.sleep(1000);
-                loadPowerRegisterSw.low();
+                pvControllerDevice.loadRegisterOff();
 
                 Thread.sleep(4000);
 
-                log.info("PC電源をONします。");
-                pcPowerSw.high();
-                Thread.sleep(300);
-                pcPowerSw.low();
+                miningRigDevice.start();
                 pcStartTime = LocalDateTime.now();
 
-                log.info("冷却ファンを始動します。");
                 if (fanStopFuture != null && !fanStopFuture.isDone()) {
                     fanStopFuture.cancel(true);
                 }
                 Thread.sleep(100);
-                fanPowerSw.high();
+                coolingFanDevice.start();
 
             } else if (shutdownRequest || (pcPowerOn && powerOffCondition.lessEqual(summary.getPvPower(),
                     summary.getBattSOC(), summary.getBattVolt(), summary.getStage()))) {
-                // 設定条件以下のとき、PC電源OFF
-                log.info("PC電源をOFFします。");
-                pcPowerSw.high();
-                Thread.sleep(300);
-                pcPowerSw.low();
+                // 設定条件以下のとき、マイニングリグを停止
+
+                miningRigDevice.stop();
 
                 Thread.sleep(20000);
 
-                log.info("負荷出力をOFFします。");
-                pvControllerDevice.changeLoadSwith(pvControllerConfig, conn, false);
+                pvControllerDevice.changeLoadSwith(conn, false);
 
                 // 指定時間待ってから冷却ファンを止める
                 if (taskExecutor.getActiveCount() == 0) {
                     fanStopFuture = taskExecutor.submit(() -> {
                         try {
-                            Thread.sleep(controlConfig.getFan().getPowerOffDuration() * 60 * 1000);
+                            Thread.sleep(controlProperties.getFan().getPowerOffDuration() * 60 * 1000);
                         } catch (InterruptedException ignore) {
                             // NOP
                         }
-
-                        log.info("冷却ファンを停止します。");
-                        fanPowerSw.low();
+                        coolingFanDevice.stop();
                     });
                 }
 
@@ -279,23 +265,33 @@ public class PvControllerTasks {
         // バッテリー温度取得
         Double battTemp;
         try {
-            var address = deviceConfig.getLm75a().getAddress();
-            battTemp = lm75aDevice.readCurrent(address);
+            battTemp = lm75aDevice.readCurrent();
         } catch (Exception e) {
             log.warn("バッテリー温度の取得に失敗しました。", e);
             battTemp = null;
         }
 
         // Ambient送信
-        try {
-            var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
-                    rigStatus.getRigPowerMode().getStatusValue(), battTemp };
-            log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},rigPowerMode={},battTemp={}", sendDatas[0],
-                    sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
+        var ambientConfig = serviceProperties.getAmbient();
+        if (ambientConfig != null) {
+            // Nicehash OSのPower Modeか、Hive OSのOCプロファイルの数値を取得(9=HIGH,11=MEDIUM,12=LOW)
+            Double powerModeOrLimitValue = currentRigStatus == null ? null
+                    : currentRigStatus.getRigPowerMode().getStatusValue();
+            if (powerModeOrLimitValue == null && currentOcProfile != null) {
+                powerModeOrLimitValue = currentOcProfile.getName()
+                        .equals(controlProperties.getPower().getHighProfileName()) ? 9D : 12D;
+            }
 
-            ambientService.send(serviceConfig.getAmbient(), ZonedDateTime.now(), sendDatas);
-        } catch (Exception e) {
-            log.error("Ambientへのデータ送信に失敗しました。", e);
+            try {
+                var sendDatas = new Double[] { summary.getPvPower(), summary.getBattVolt(), summary.getLoadPower(),
+                        powerModeOrLimitValue, battTemp };
+                log.debug("Ambientに3分値を送信します。pcPower={},battVolt={},loadPower={},rigPM/PL={},battTemp={}",
+                        sendDatas[0], sendDatas[1], sendDatas[2], sendDatas[3], sendDatas[4]);
+
+                ambientService.send(ambientConfig, ZonedDateTime.now(), null, sendDatas);
+            } catch (Exception e) {
+                log.error("Ambientへのデータ送信に失敗しました。", e);
+            }
         }
     }
 
@@ -307,7 +303,7 @@ public class PvControllerTasks {
      */
     @Scheduled(cron = "0 */5 * * * *")
     public void batteryTempControl() throws UnsupportedBusNumberException, IOException {
-        var heaterConfig = controlConfig.getBatteryHeater();
+        var heaterConfig = controlProperties.getBatteryHeater();
         var hourRange = heaterConfig.getHourRange();
         var tempRange = heaterConfig.getTemperatureRange();
 
@@ -316,9 +312,8 @@ public class PvControllerTasks {
             var range = Arrays.stream(hourRange).map(LocalTime::parse).toArray(LocalTime[]::new);
             var now = LocalTime.now();
             if (now.compareTo(range[0]) < 0 || now.compareTo(range[1]) > 0) {
-                if (battHeaterSw.isHigh()) {
-                    log.info("バッテリーヒーターを停止します。");
-                    battHeaterSw.low();
+                if (batteryHeaterDevice.isStarted()) {
+                    batteryHeaterDevice.stop();
                 }
                 return;
             }
@@ -327,24 +322,22 @@ public class PvControllerTasks {
         // バッテリー温度取得、ヒーター制御
         double battTemp;
         try {
-            var address = deviceConfig.getLm75a().getAddress();
-            battTemp = lm75aDevice.readCurrent(address);
+            battTemp = lm75aDevice.readCurrent();
         } catch (Exception e) {
             log.warn("バッテリー温度の取得に失敗しました。", e);
             return;
         }
 
-        if (battTemp < tempRange[0] && battHeaterSw.isLow()) {
-            log.info("バッテリーヒーターを始動します。");
-            battHeaterSw.high();
-        } else if (battTemp > tempRange[1] && battHeaterSw.isHigh()) {
-            log.info("バッテリーヒーターを停止します。");
-            battHeaterSw.low();
+        var battHeaterStarted = batteryHeaterDevice.isStarted();
+        if (battTemp < tempRange[0] && !battHeaterStarted) {
+            batteryHeaterDevice.start();
+        } else if (battTemp > tempRange[1] && battHeaterStarted) {
+            batteryHeaterDevice.stop();
         }
     }
 
     /**
-     * 15分毎にTDP制御
+     * 15分毎にPowerMode/PowerLimit制御
      */
     @Scheduled(fixedDelay = 15 * 60 * 1000, initialDelay = 15 * 60 * 1000)
     public void tdpControl() throws Exception {
@@ -359,44 +352,45 @@ public class PvControllerTasks {
             fifteenMinDatas.clear();
         }
 
-        // PC起動後15分間はTDP制御しない
+        // PC起動後15分間は制御しない
         if (pcStartTime == null || ChronoUnit.MINUTES.between(pcStartTime, LocalDateTime.now()) < 15) {
             return;
         }
 
-        var pcPowerOn = pcPowerStatus.isHigh();
-        var histeresis = controlConfig.getTdp().getHysteresis();
+        var pcPowerOn = miningRigDevice.isStarted();
+        var histeresis = controlProperties.getPower().getHysteresis();
 
-        // TDP制御
-        if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
-            // 発電電力>消費電力のとき、TDPを上げる
-            var powerMode = rigStatus.getRigPowerMode();
-            var newPowerMode = powerMode == POWER_MODE.LOW ? POWER_MODE.MEDIUM
-                    : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.HIGH : POWER_MODE.HIGH;
-            if (powerMode != newPowerMode) {
-                log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
-                var time = nicehashService.getServerTime();
-                if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
-                    rigStatus.setRigPowerMode(newPowerMode);
-                }
+        // Power Mode制御
+        var nicehashConfig = serviceProperties.getNicehashApi();
+        if (nicehashConfig != null) {
+            var oldPowerMode = currentRigStatus.getRigPowerMode();
+            if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
+                currentRigStatus = nicehashService.turnUpPowerMode(nicehashConfig);
+            } else if (pcPowerOn && (summary.getLoadPower() - summary.getPvPower()) > histeresis) {
+                currentRigStatus = nicehashService.turnDownPowerMode(nicehashConfig);
             }
+            if (oldPowerMode == currentRigStatus.getRigPowerMode()) {
+                log.info("リグのPowerModeを{}に変更しました。", currentRigStatus.getRigPowerMode());
+            }
+        }
 
-        } else if (pcPowerOn && (summary.getLoadPower() - summary.getPvPower()) > histeresis) {
-            // 発電電力<消費電力のとき、TDPを下げる
-            var powerMode = rigStatus.getRigPowerMode();
-            var newPowerMode = powerMode == POWER_MODE.HIGH ? POWER_MODE.MEDIUM
-                    : powerMode == POWER_MODE.MEDIUM ? POWER_MODE.LOW : POWER_MODE.LOW;
-            if (powerMode != newPowerMode) {
-                log.info("リグのPowerModeを変更します。{} to {}", powerMode, newPowerMode);
-                var time = nicehashService.getServerTime();
-                if (nicehashService.setRigPowerMode(serviceConfig.getNicehash(), time, newPowerMode)) {
-                    rigStatus.setRigPowerMode(newPowerMode);
-                }
+        // Power Limit制御
+        var hiveConfig = serviceProperties.getHiveApi();
+        if (hiveConfig != null) {
+            var oldOcProfileId = currentOcProfile.getId();
+            if (pcPowerOn && (summary.getPvPower() - summary.getLoadPower()) > histeresis) {
+                currentOcProfile = hiveService.turnUpPowerLimit(hiveConfig, controlProperties.getPower());
+            } else if (pcPowerOn && (summary.getLoadPower() - summary.getPvPower()) > histeresis) {
+                currentOcProfile = hiveService.turnDownPowerLimit(hiveConfig, controlProperties.getPower());
+            }
+            if (!oldOcProfileId.equals(currentOcProfile.getId())) {
+                log.info("ワーカーのOCプロファイルを{}に変更しました。", currentOcProfile.getName());
             }
         }
 
         // 起動失敗時にシャットダウン
-        if (pcPowerOn && summary.getLoadPower() < 100D) {
+        // TODO しきい値を設定化
+        if (pcPowerOn && summary.getLoadPower() < 50D) {
             shutdownRequest = true;
         }
     }
@@ -407,14 +401,12 @@ public class PvControllerTasks {
     @Scheduled(cron = "0 */15 * * * *")
     public void fanControl() {
         // PCが電源OFFかつ、クーリング中でなければファンを回す
-        var pcPowerOn = pcPowerStatus.isHigh();
+        var pcPowerOn = miningRigDevice.isStarted();
         if (!pcPowerOn && taskExecutor.getActiveCount() == 0) {
             try {
-                log.info("冷却ファンを始動します。");
-                fanPowerSw.high();
-                Thread.sleep(controlConfig.getFan().getDuration() * 1000);
-                log.info("冷却ファンを停止します。");
-                fanPowerSw.low();
+                coolingFanDevice.start();
+                Thread.sleep(controlProperties.getFan().getDuration() * 1000);
+                coolingFanDevice.stop();
             } catch (Exception e) {
                 log.error("ファン制御に失敗しました。", e);
             }
@@ -426,42 +418,13 @@ public class PvControllerTasks {
      */
     @PreDestroy
     public void destroy() {
-        if (gpio != null) {
-            log.debug("GPIOをシャットダウンします。");
-            gpio.shutdown();
-        }
         if (conn != null) {
-            log.debug("PVコントローラーを切断します。unitId={}", deviceConfig.getPvController().getUnitId());
+            log.info("PVコントローラーを切断します。");
             conn.close();
         }
 
+        raspberryPiDevice.shutdown();
+
         initialized = false;
-    }
-
-    private GpioPinDigitalOutput initOutputGPIO(Pin pin, String name, PinState initial) throws InterruptedException {
-        while (true) {
-            Thread.sleep(3000);
-            try {
-                var result = gpio.provisionDigitalOutputPin(pin, name, initial);
-                result.setShutdownOptions(true, initial);
-                return result;
-            } catch (Exception e) {
-                log.warn("", e);
-                log.warn("{}の初期化に失敗しました。リトライします。", pin);
-            }
-        }
-    }
-
-    private GpioPinDigitalInput initInputGPIO(Pin pin, String name, PinPullResistance pull)
-            throws InterruptedException {
-        while (true) {
-            Thread.sleep(3000);
-            try {
-                return gpio.provisionDigitalInputPin(pin, name, pull);
-            } catch (Exception e) {
-                log.warn("", e);
-                log.warn("{}の初期化に失敗しました。リトライします。", pin);
-            }
-        }
     }
 }
