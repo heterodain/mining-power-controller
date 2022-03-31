@@ -33,10 +33,9 @@
 - PV コントローラー (PV controller)
   - Epever 製の Tracer AN/BN/CN シリーズ, LS-B シリーズ  
     (Epever Tracer AN/BN/CN Series, LS-B Series)
-- Raspberry PI Zero W
-- Java 8
-  - Java 9 以降不可 (Java 9 or higher Not possible)
-- Maven
+- Raspberry PI
+- v1.0～v1.5 - Java 8 (v1.0 to v1.5 requires Java8)  
+  v1.6 - Java 11 以降 (v1.6 requires Java 11 or later)  
 
 ## 使い方 (Usage)
 
@@ -56,7 +55,7 @@
    (Put jar and application.yml files in same folder, Execute on Raspberry PI)
 
      ```command
-     java -jar mining-powercontroller-1.0.jar
+     java -jar mining-powercontroller-1.6.jar
      ```
 
 ## 参考情報 (Appendix)
